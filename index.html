@@ -89,6 +89,28 @@
             pointer-events: auto;
             text-align: center;
         }
+        
+        #jumpscare-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.1s;
+        }
+        
+        #jumpscare-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
 
         h1 {
             font-family: 'Nosifer', cursive;
@@ -193,6 +215,7 @@
     <canvas id="gameCanvas"></canvas>
     <div id="vignette"></div>
     <div id="damage-flash"></div>
+    <div id="jumpscare-overlay"></div>
     
     <div id="ui-layer">
         <div>
@@ -205,7 +228,7 @@
     <div id="message-overlay">
         <h1>ONTSNAP AAN DE SINT</h1>
         <p>DOOM EDITIE</p>
-        <p>Je zit gevangen in een 3D doolhof. Vind de <strong>3 Gouden Wortels</strong>. De Sint is hier. Hij kijkt. Hij wacht.</p>
+        <p>Je zit gevangen in een 3D doolhof. Vind de <strong>3 Gouden Wortels</strong>. Volg de bloedsporen... als je durft.</p>
         <button id="start-btn">START</button>
     </div>
 </div>
@@ -214,9 +237,9 @@
     // --- Configuration (Doom Style) ---
     const MAP_WIDTH = 25;
     const MAP_HEIGHT = 18;
-    const SCREEN_WIDTH = 640;  // Internal resolution for retro feel
+    const SCREEN_WIDTH = 640;  
     const SCREEN_HEIGHT = 360;
-    const FOV = 0.66; // Field of view (approx 66 degrees)
+    const FOV = 0.66; 
     
     // Speeds
     const MOVE_SPEED = 0.08;
@@ -229,9 +252,10 @@
     
     // --- Game State ---
     const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d', { alpha: false }); // Optimize
+    const ctx = canvas.getContext('2d', { alpha: false }); 
     const uiLayer = document.getElementById('ui-layer');
     const msgOverlay = document.getElementById('message-overlay');
+    const jumpscareOverlay = document.getElementById('jumpscare-overlay');
     const startBtn = document.getElementById('start-btn');
     const scoreDisplay = document.getElementById('score-display');
     const staminaBar = document.getElementById('stamina-bar');
@@ -244,17 +268,21 @@
     let carrotsCollected = 0;
     let stamina = 100;
     let sintProximity = 0;
-    let zBuffer = []; // For sprite depth checking
+    let zBuffer = []; 
+    let startTime = 0; // For difficulty scaling
+    
+    // Hallucination State
+    let hallucinations = []; // Array of active piet sprites
+    let lastHallucinationCheck = 0;
 
-    // Map: 0=Floor, 1=Wall, 2=Start, 3=Exit, 4=Carrot
-    // Same layout, processed into a grid
+    // Map: 0=Floor, 1=Wall, 2=Start, 3=Exit, 4=Carrot, 5=Bloody Wall Hint
     const mapLayout = [
         [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
         [1,2,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,1],
         [1,0,1,1,1,0,1,0,1,1,1,0,1,0,1,1,1,1,1,1,1,1,1,0,1],
         [1,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,1],
         [1,0,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,0,1,0,1,1,1],
-        [1,0,0,0,1,4,0,0,0,0,0,0,0,0,0,0,1,4,1,0,0,0,0,0,1],
+        [1,0,0,0,1,4,0,0,0,0,0,0,0,0,0,0,5,4,1,0,0,0,0,0,1], // Added hint (5)
         [1,1,1,0,1,1,1,1,1,1,1,1,0,1,1,1,1,0,1,1,1,1,1,0,1],
         [1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
         [1,0,1,1,1,1,0,1,1,0,1,0,1,1,0,1,1,1,1,1,1,1,1,0,1],
@@ -264,24 +292,24 @@
         [1,0,1,1,1,1,1,1,1,1,1,1,1,1,0,1,0,1,1,0,1,1,1,0,1],
         [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
         [1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,1],
-        [1,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,1],
+        [1,0,0,0,5,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,1], // Added hint (5) near carrot path
         [1,3,1,0,0,0,1,1,1,0,0,0,1,1,1,1,1,1,1,0,0,0,1,1,1],
         [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
     ];
 
     // Player (camera)
-    let posX = 0, posY = 0; // Position vector
-    let dirX = -1, dirY = 0; // Direction vector
-    let planeX = 0, planeY = 0.66; // Camera plane (determines FOV)
+    let posX = 0, posY = 0; 
+    let dirX = -1, dirY = 0; 
+    let planeX = 0, planeY = 0.66; 
 
     // Entities
     let sint = { x: 0, y: 0, active: true };
-    let sprites = []; // Will hold carrots + sint + exit
+    let sprites = []; 
     
-    // Textures (Generated via code)
+    // Textures
     const texWidth = 64;
     const texHeight = 64;
-    let textures = {}; // Will hold Images/Canvases
+    let textures = {}; 
 
     // --- Texture Generation ---
     function generateTextures() {
@@ -294,15 +322,29 @@
             cx.fillStyle = color1;
             cx.fillRect(0,0,64,64);
 
-            if (type === 'wall') {
+            if (type === 'wall' || type === 'wall_bloody') {
                 // Bricks
                 cx.fillStyle = color2;
-                for(let i=0; i<100; i++) cx.fillRect(Math.random()*64, Math.random()*64, 2, 2); // Noise
+                for(let i=0; i<100; i++) cx.fillRect(Math.random()*64, Math.random()*64, 2, 2); 
                 cx.fillStyle = 'rgba(0,0,0,0.3)';
-                cx.fillRect(0, 0, 64, 2); // Top mortar
-                cx.fillRect(0, 32, 64, 2); // Mid mortar
+                cx.fillRect(0, 0, 64, 2); 
+                cx.fillRect(0, 32, 64, 2); 
                 cx.fillRect(0, 0, 2, 32); 
                 cx.fillRect(32, 32, 2, 32); 
+
+                if (type === 'wall_bloody') {
+                    // Blood stains / Hints
+                    cx.fillStyle = '#800';
+                    cx.beginPath();
+                    cx.arc(32, 32, 20, 0, Math.PI*2);
+                    cx.fill();
+                    // Drips
+                    cx.fillRect(28, 32, 4, 30);
+                    cx.fillRect(36, 32, 2, 20);
+                    cx.fillStyle = '#f00';
+                    cx.font = 'bold 20px Arial';
+                    cx.fillText("?", 25, 38);
+                }
             } else if (type === 'exit') {
                 cx.fillStyle = '#0f0';
                 cx.font = '30px Arial';
@@ -324,27 +366,65 @@
                 cx.beginPath(); cx.moveTo(32, 60); cx.lineTo(15, 15); cx.lineTo(49, 15); cx.fill();
                 cx.fillStyle = '#0f0'; // Leaf
                 cx.fillRect(28, 0, 8, 15);
-                // Gold Glow
                 cx.strokeStyle = 'yellow'; cx.lineWidth=2; cx.stroke();
             } else if (type === 'sint') {
                 // Mitre
                 cx.fillStyle = '#900';
                 cx.beginPath(); cx.moveTo(10, 30); cx.lineTo(32, 5); cx.lineTo(54, 30); cx.lineTo(54, 60); cx.lineTo(10, 60); cx.fill();
-                // Cross
                 cx.fillStyle = '#eb0'; cx.fillRect(28, 15, 8, 30); cx.fillRect(18, 25, 28, 8);
-                // Glowing Eyes
                 cx.fillStyle = '#fff'; 
                 cx.beginPath(); cx.arc(24, 45, 3, 0, Math.PI*2); cx.arc(40, 45, 3, 0, Math.PI*2); cx.fill();
                 cx.fillStyle = '#f00'; 
                 cx.beginPath(); cx.arc(24, 45, 1, 0, Math.PI*2); cx.arc(40, 45, 1, 0, Math.PI*2); cx.fill();
+            } else if (type === 'piet') {
+                // Scary shadow figure
+                cx.fillStyle = '#000'; // Dark skin/suit (Shadowy)
+                cx.beginPath(); cx.arc(32, 20, 10, 0, Math.PI*2); cx.fill(); // Head
+                cx.fillRect(22, 30, 20, 34); // Body
+                // Feather
+                cx.strokeStyle = '#f0f'; cx.lineWidth=3; cx.beginPath(); cx.moveTo(32, 10); cx.lineTo(45, 0); cx.stroke();
+                // Eyes
+                cx.fillStyle = '#fff';
+                cx.fillRect(28, 18, 2, 2); cx.fillRect(34, 18, 2, 2);
             }
             return c;
         }
 
-        textures.wall = createTexture('#444', '#555', 'wall'); // Grey brick
+        function createJumpscare() {
+            const c = document.createElement('canvas');
+            c.width = 300; c.height = 300;
+            const cx = c.getContext('2d');
+            // Background
+            cx.fillStyle = '#000';
+            cx.fillRect(0,0,300,300);
+            // Scary Face
+            cx.fillStyle = '#f00';
+            cx.beginPath(); cx.arc(150, 150, 100, 0, Math.PI*2); cx.fill();
+            cx.fillStyle = '#000';
+            // Eyes
+            cx.beginPath(); cx.ellipse(110, 130, 20, 40, 0, 0, Math.PI*2); cx.fill();
+            cx.beginPath(); cx.ellipse(190, 130, 20, 40, 0, 0, Math.PI*2); cx.fill();
+            // Mouth
+            cx.beginPath(); cx.moveTo(100, 200); cx.quadraticCurveTo(150, 280, 200, 200); cx.fill();
+            // Pupils
+            cx.fillStyle = '#fff';
+            cx.beginPath(); cx.arc(110, 130, 5, 0, Math.PI*2); cx.fill();
+            cx.beginPath(); cx.arc(190, 130, 5, 0, Math.PI*2); cx.fill();
+            return c;
+        }
+
+        textures.wall = createTexture('#444', '#555', 'wall'); 
+        textures.wall_bloody = createTexture('#444', '#555', 'wall_bloody');
         textures.exit = createTexture('#050', '#0a0', 'exit');
         textures.carrot = createSprite('carrot');
         textures.sint = createSprite('sint');
+        textures.piet = createSprite('piet');
+        
+        const jumpCanvas = createJumpscare();
+        const jumpImg = document.createElement('img');
+        jumpImg.src = jumpCanvas.toDataURL();
+        jumpImg.id = "jumpscare-img";
+        jumpscareOverlay.appendChild(jumpImg);
     }
 
     // --- Initialization ---
@@ -355,6 +435,7 @@
         generateTextures();
         
         sprites = [];
+        hallucinations = [];
         
         // Parse Map
         for(let y=0; y<MAP_HEIGHT; y++) {
@@ -363,7 +444,6 @@
                 if(type === 2) { // Start
                     posX = x + 0.5;
                     posY = y + 0.5;
-                    // Initial dir
                     dirX = 1; dirY = 0;
                     planeX = 0; planeY = 0.66;
                 } else if(type === 4) { // Carrot
@@ -374,16 +454,17 @@
             }
         }
 
-        // Setup Sint
         sint = { x: MAP_WIDTH - 2.5, y: MAP_HEIGHT - 2.5, type: 'sint', active: true };
         sprites.push(sint);
         
         carrotsCollected = 0;
         stamina = 100;
         gameRunning = true;
+        startTime = Date.now();
         
         scoreDisplay.innerText = "Wortels: 0 / 3";
         msgOverlay.classList.add('hidden');
+        jumpscareOverlay.style.opacity = 0;
         controlsHint.classList.remove('hidden');
         damageFlash.style.opacity = 0;
         
@@ -410,10 +491,10 @@
     // --- Physics & Logic ---
 
     function updateGame() {
-        // Movement Logic (Doom Tank Controls)
-        // Rotate
+        let now = Date.now();
+        
+        // Rotation
         if (keys['d'] || keys['arrowright']) {
-            // Rotated Right (Clockwise) -> Positive Angle
             let oldDirX = dirX;
             dirX = dirX * Math.cos(ROT_SPEED) - dirY * Math.sin(ROT_SPEED);
             dirY = oldDirX * Math.sin(ROT_SPEED) + dirY * Math.cos(ROT_SPEED);
@@ -422,7 +503,6 @@
             planeY = oldPlaneX * Math.sin(ROT_SPEED) + planeY * Math.cos(ROT_SPEED);
         }
         if (keys['a'] || keys['arrowleft']) {
-            // Rotate Left (Counter-Clockwise) -> Negative Angle
             let oldDirX = dirX;
             dirX = dirX * Math.cos(-ROT_SPEED) - dirY * Math.sin(-ROT_SPEED);
             dirY = oldDirX * Math.sin(-ROT_SPEED) + dirY * Math.cos(-ROT_SPEED);
@@ -442,22 +522,63 @@
         staminaBar.style.width = stamina + "%";
         staminaBar.style.background = stamina < 20 ? "#f00" : "#00cc00";
 
-        // Check !== 1 (Wall) instead of === 0 (Floor) to allow walking on Start(2), Exit(3), Carrots(4)
+        // Collision Check (Treat walls 1 and 5 as blocking)
+        function isBlocking(val) { return val === 1 || val === 5; }
+
         if (keys['w'] || keys['arrowup']) {
-            if(mapLayout[Math.floor(posY)][Math.floor(posX + dirX * currentSpeed * 2)] !== 1) posX += dirX * currentSpeed;
-            if(mapLayout[Math.floor(posY + dirY * currentSpeed * 2)][Math.floor(posX)] !== 1) posY += dirY * currentSpeed;
+            if(!isBlocking(mapLayout[Math.floor(posY)][Math.floor(posX + dirX * currentSpeed * 2)])) posX += dirX * currentSpeed;
+            if(!isBlocking(mapLayout[Math.floor(posY + dirY * currentSpeed * 2)][Math.floor(posX)])) posY += dirY * currentSpeed;
         }
         if (keys['s'] || keys['arrowdown']) {
-            if(mapLayout[Math.floor(posY)][Math.floor(posX - dirX * currentSpeed * 2)] !== 1) posX -= dirX * currentSpeed;
-            if(mapLayout[Math.floor(posY - dirY * currentSpeed * 2)][Math.floor(posX)] !== 1) posY -= dirY * currentSpeed;
+            if(!isBlocking(mapLayout[Math.floor(posY)][Math.floor(posX - dirX * currentSpeed * 2)])) posX -= dirX * currentSpeed;
+            if(!isBlocking(mapLayout[Math.floor(posY - dirY * currentSpeed * 2)][Math.floor(posX)])) posY -= dirY * currentSpeed;
         }
 
-        // Sint AI (Simple Chase)
-        // 0.03 speed is fairly fast for an enemy in this grid
-        let sintSpeed = 0.025; 
-        if (carrotsCollected === 3) sintSpeed = 0.045; // Enrage
+        // --- Zwarte Piet Hallucinations ---
+        if (now - lastHallucinationCheck > 2000) { // Check every 2s
+            lastHallucinationCheck = now;
+            // Chance to spawn
+            if (hallucinations.length === 0 && Math.random() < 0.3) {
+                // Spawn vector: 8-12 units ahead
+                let spawnDist = 8 + Math.random() * 4;
+                let hX = posX + dirX * spawnDist;
+                let hY = posY + dirY * spawnDist;
+                
+                // Ensure valid location (empty space)
+                if (hX > 0 && hX < MAP_WIDTH && hY > 0 && hY < MAP_HEIGHT) {
+                    if (mapLayout[Math.floor(hY)][Math.floor(hX)] === 0) {
+                        let piet = { x: hX, y: hY, type: 'piet', active: true, spawnTime: now };
+                        hallucinations.push(piet);
+                        sprites.push(piet);
+                    }
+                }
+            }
+        }
+        
+        // Update Hallucinations
+        for(let i = hallucinations.length - 1; i >= 0; i--) {
+            let p = hallucinations[i];
+            let distToPiet = Math.hypot(posX - p.x, posY - p.y);
+            
+            // Vanish if too close or too old
+            if (distToPiet < 3 || (now - p.spawnTime > 4000)) {
+                p.active = false; // For renderer
+                hallucinations.splice(i, 1);
+                // Remove from sprites array
+                let spriteIndex = sprites.indexOf(p);
+                if (spriteIndex > -1) sprites.splice(spriteIndex, 1);
+            }
+        }
 
-        // Simple BFS or direct line? Direct line with simple wall slide
+
+        // --- Sint AI & Dynamic Speed ---
+        // Base speed 0.02, increases by 0.0005 every second
+        let timeAlive = (now - startTime) / 1000;
+        let sintSpeed = 0.02 + (timeAlive * 0.0002);
+        if (carrotsCollected === 3) sintSpeed += 0.02; // Enrage bonus
+        // Cap speed
+        if (sintSpeed > 0.065) sintSpeed = 0.065;
+
         let dx = posX - sint.x;
         let dy = posY - sint.y;
         let dist = Math.sqrt(dx*dx + dy*dy);
@@ -466,23 +587,20 @@
             let sx = dx / dist * sintSpeed;
             let sy = dy / dist * sintSpeed;
             
-            // Basic collision for Sint
-            if (mapLayout[Math.floor(sint.y)][Math.floor(sint.x + sx * 1.5)] === 0) sint.x += sx;
-            if (mapLayout[Math.floor(sint.y + sy * 1.5)][Math.floor(sint.x)] === 0) sint.y += sy;
+            if (!isBlocking(mapLayout[Math.floor(sint.y)][Math.floor(sint.x + sx * 1.5)])) sint.x += sx;
+            if (!isBlocking(mapLayout[Math.floor(sint.y + sy * 1.5)][Math.floor(sint.x)])) sint.y += sy;
         }
 
-        // Audio Proximity
-        sintProximity = Math.max(0, 1 - (dist / 10)); // 10 blocks range
+        sintProximity = Math.max(0, 1 - (dist / 10)); 
         updateSound();
 
-        // Death
         if (dist < 0.5) {
             endGame(false);
         }
 
         // Item Pickup
         sprites.forEach(s => {
-            if (!s.active) return;
+            if (!s.active || s.type === 'piet' || s.type === 'sint') return;
             let d = Math.sqrt((posX - s.x)**2 + (posY - s.y)**2);
             if (d < 0.5) {
                 if (s.type === 'carrot') {
@@ -509,7 +627,6 @@
         }
         if(audioCtx.state === 'suspended') audioCtx.resume();
 
-        // Background Drone
         if(!droneOsc) {
             droneOsc = audioCtx.createOscillator();
             let gain = audioCtx.createGain();
@@ -525,8 +642,6 @@
 
     function updateSound() {
         if(!droneOsc) return;
-        
-        // Pitch rises as Sint gets closer
         droneOsc.frequency.value = 40 + (sintProximity * 80);
         let vol = 0.05 + (sintProximity * 0.1);
         droneOsc.gainNode.gain.value = vol;
@@ -554,26 +669,37 @@
             osc.start();
             osc.stop(audioCtx.currentTime + 0.2);
         } else if (type === 'scream') {
+            // Jumpscare Scream
             osc.type = 'sawtooth';
-            osc.frequency.setValueAtTime(200, audioCtx.currentTime);
-            osc.frequency.linearRampToValueAtTime(50, audioCtx.currentTime + 1);
-            gain.gain.value = 0.5;
+            // Discordant tritone sweep
+            osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+            osc.frequency.linearRampToValueAtTime(100, audioCtx.currentTime + 0.3);
+            
+            let osc2 = audioCtx.createOscillator();
+            osc2.type = 'square';
+            osc2.frequency.setValueAtTime(450, audioCtx.currentTime);
+            osc2.frequency.linearRampToValueAtTime(50, audioCtx.currentTime + 0.4);
+            osc2.connect(gain);
+
+            gain.gain.setValueAtTime(1.0, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1.5);
+            
             osc.start();
-            osc.stop(audioCtx.currentTime + 1);
+            osc2.start();
+            osc.stop(audioCtx.currentTime + 1.5);
+            osc2.stop(audioCtx.currentTime + 1.5);
         }
     }
 
     // --- Raycasting Engine ---
 
     function draw() {
-        // Floor & Ceiling (Simple fill)
         ctx.fillStyle = '#111'; // Ceiling
         ctx.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT / 2);
         ctx.fillStyle = '#1a1a1a'; // Floor
         ctx.fillRect(0, SCREEN_HEIGHT / 2, SCREEN_WIDTH, SCREEN_HEIGHT / 2);
 
-        // Raycasting Walls
-        zBuffer = []; // Clear Z Buffer
+        zBuffer = []; 
 
         for (let x = 0; x < SCREEN_WIDTH; x++) {
             let cameraX = 2 * x / SCREEN_WIDTH - 1;
@@ -590,7 +716,8 @@
 
             let stepX, stepY;
             let hit = 0;
-            let side; // 0 for NS, 1 for EW
+            let side; 
+            let wallType = 1;
 
             if (rayDirX < 0) {
                 stepX = -1;
@@ -607,7 +734,6 @@
                 sideDistY = (mapY + 1.0 - posY) * deltaDistY;
             }
 
-            // DDA
             while (hit === 0) {
                 if (sideDistX < sideDistY) {
                     sideDistX += deltaDistX;
@@ -618,25 +744,25 @@
                     mapY += stepY;
                     side = 1;
                 }
-                if (mapLayout[mapY][mapX] > 0 && mapLayout[mapY][mapX] !== 2 && mapLayout[mapY][mapX] !== 4 && mapLayout[mapY][mapX] !== 3) {
-                     // Check if it's a wall (1)
-                     if (mapLayout[mapY][mapX] === 1) hit = 1;
+                
+                let tile = mapLayout[mapY][mapX];
+                if (tile === 1 || tile === 5) {
+                    hit = 1;
+                    wallType = tile;
                 }
             }
 
             if (side === 0) perpWallDist = (mapX - posX + (1 - stepX) / 2) / rayDirX;
             else            perpWallDist = (mapY - posY + (1 - stepY) / 2) / rayDirY;
 
-            zBuffer[x] = perpWallDist; // Store for sprites
+            zBuffer[x] = perpWallDist; 
 
-            // Calculate height of line to draw
             let lineHeight = Math.floor(SCREEN_HEIGHT / perpWallDist);
             let drawStart = -lineHeight / 2 + SCREEN_HEIGHT / 2;
             if (drawStart < 0) drawStart = 0;
             let drawEnd = lineHeight / 2 + SCREEN_HEIGHT / 2;
             if (drawEnd >= SCREEN_HEIGHT) drawEnd = SCREEN_HEIGHT - 1;
 
-            // Texture calculations
             let wallX; 
             if (side == 0) wallX = posY + perpWallDist * rayDirY;
             else           wallX = posX + perpWallDist * rayDirX;
@@ -646,24 +772,21 @@
             if(side == 0 && rayDirX > 0) texX = texWidth - texX - 1;
             if(side == 1 && rayDirY < 0) texX = texWidth - texX - 1;
 
-            // Shading (Darkness)
             let brightness = 1.0 / (perpWallDist * 0.5); 
             if (brightness > 1) brightness = 1;
-            // darker on y-sides
             if (side === 1) brightness *= 0.7;
 
-            // Draw Wall Strip
-            // We use drawImage to draw a 1px slice of the texture
-            ctx.globalAlpha = 1.0; // Reset alpha
-            ctx.drawImage(textures.wall, texX, 0, 1, texHeight, x, drawStart, 1, drawEnd - drawStart);
+            // Choose Texture based on Wall Type
+            let tex = (wallType === 5) ? textures.wall_bloody : textures.wall;
+
+            ctx.globalAlpha = 1.0; 
+            ctx.drawImage(tex, texX, 0, 1, texHeight, x, drawStart, 1, drawEnd - drawStart);
             
-            // Apply darkness overlay
             ctx.fillStyle = `rgba(0,0,0,${1 - brightness})`;
             ctx.fillRect(x, drawStart, 1, drawEnd - drawStart);
         }
 
         // --- Sprite Casting ---
-        // Sort sprites from far to close
         sprites.forEach(sprite => {
             sprite.dist = ((posX - sprite.x) * (posX - sprite.x) + (posY - sprite.y) * (posY - sprite.y));
         });
@@ -676,42 +799,39 @@
             let spriteX = sprite.x - posX;
             let spriteY = sprite.y - posY;
 
-            // Transform sprite with the inverse camera matrix
             let invDet = 1.0 / (planeX * dirY - dirX * planeY);
             let transformX = invDet * (dirY * spriteX - dirX * spriteY);
-            let transformY = invDet * (-planeY * spriteX + planeX * spriteY); // this is depth inside the screen
+            let transformY = invDet * (-planeY * spriteX + planeX * spriteY); 
 
             let spriteScreenX = Math.floor((SCREEN_WIDTH / 2) * (1 + transformX / transformY));
 
-            // Calculate height of the sprite on screen
             let spriteHeight = Math.abs(Math.floor(SCREEN_HEIGHT / transformY));
             let drawStartY = -spriteHeight / 2 + SCREEN_HEIGHT / 2;
             if (drawStartY < 0) drawStartY = 0;
             let drawEndY = spriteHeight / 2 + SCREEN_HEIGHT / 2;
             if (drawEndY >= SCREEN_HEIGHT) drawEndY = SCREEN_HEIGHT - 1;
 
-            // Calculate width of the sprite
             let spriteWidth = Math.abs(Math.floor(SCREEN_HEIGHT / transformY));
             let drawStartX = -spriteWidth / 2 + spriteScreenX;
             let drawEndX = spriteWidth / 2 + spriteScreenX;
             if (drawStartX < 0) drawStartX = 0;
             if (drawEndX >= SCREEN_WIDTH) drawEndX = SCREEN_WIDTH - 1;
 
-            // Draw Sprite strip by strip
-            let tex = (sprite.type === 'carrot') ? textures.carrot : 
-                      (sprite.type === 'exit') ? textures.exit : textures.sint;
+            let tex = textures.carrot;
+            if (sprite.type === 'exit') tex = textures.exit;
+            else if (sprite.type === 'sint') tex = textures.sint;
+            else if (sprite.type === 'piet') tex = textures.piet;
+
+            // Piet transparency (ghost effect)
+            if (sprite.type === 'piet') ctx.globalAlpha = 0.6;
+            else ctx.globalAlpha = 1.0;
 
             for (let stripe = Math.floor(drawStartX); stripe < Math.floor(drawEndX); stripe++) {
                 let texX = Math.floor(256 * (stripe - (-spriteWidth / 2 + spriteScreenX)) * texWidth / spriteWidth) / 256;
                 
-                // Only draw if:
-                // 1. It's in front of camera plane (transformY > 0)
-                // 2. It's on the screen
-                // 3. It's closer than the wall at this column (Z-Buffer check)
                 if (transformY > 0 && stripe > 0 && stripe < SCREEN_WIDTH && transformY < zBuffer[stripe]) {
                     ctx.drawImage(tex, texX, 0, 1, texHeight, stripe, drawStartY, 1, drawEndY - drawStartY);
                     
-                    // Darken sprite with distance
                     let brightness = 1.0 / (transformY * 0.5);
                     if (brightness > 1) brightness = 1;
                     if (brightness < 0) brightness = 0;
@@ -719,6 +839,7 @@
                     ctx.fillRect(stripe, drawStartY, 1, drawEndY - drawStartY);
                 }
             }
+            ctx.globalAlpha = 1.0;
         }
     }
 
@@ -733,17 +854,31 @@
         gameRunning = false;
         gameContainer.classList.remove('shaking');
         
+        if(!win) {
+            playSound('scream');
+            // Jumpscare
+            jumpscareOverlay.style.opacity = 1;
+            // Delay showing the menu so they see the scare
+            setTimeout(() => {
+                showMenu(win);
+            }, 2000);
+        } else {
+            showMenu(win);
+        }
+        
+        if(droneOsc) {
+            droneOsc.stop();
+            droneOsc = null;
+        }
+    }
+
+    function showMenu(win) {
         let title = win ? "ONTSNAPT!" : "GEPAKT!";
         let desc = win 
             ? "Je hebt de uitgang gevonden. Het Sinterklaasfeest is gered... voor jou." 
             : "Sinterklaas heeft je gevonden. Volgend jaar ben jij Zwarte Piet.";
         let btnText = "OPNIEUW";
         let color = win ? "#0f0" : "#f00";
-
-        if(!win) {
-            playSound('scream');
-            damageFlash.style.opacity = 1;
-        }
 
         msgOverlay.querySelector('h1').innerText = title;
         msgOverlay.querySelector('h1').style.color = color;
@@ -752,11 +887,7 @@
         startBtn.innerText = btnText;
         msgOverlay.classList.remove('hidden');
         controlsHint.classList.add('hidden');
-        
-        if(droneOsc) {
-            droneOsc.stop();
-            droneOsc = null;
-        }
+        jumpscareOverlay.style.opacity = 0;
     }
 
 </script>
