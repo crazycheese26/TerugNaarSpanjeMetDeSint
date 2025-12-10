@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>De Wraak van de Sint - Horror Game</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Creepster&family=Nosifer&family=Roboto:wght@400;700&display=swap');
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #000;
+            color: #d00;
+            font-family: 'Roboto', sans-serif;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background-color: #050505;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        canvas {
+            box-shadow: 0 0 20px #111;
+            max-width: 100%;
+            max-height: 100%;
+            cursor: none; /* Hide cursor during gameplay */
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        #score-display {
+            color: #e6b800; /* Gold */
+            font-family: 'Creepster', cursive;
+            font-size: 2rem;
+            text-shadow: 0 0 10px #ff0000;
+        }
+
+        #stamina-bar-container {
+            width: 200px;
+            height: 20px;
+            background: #333;
+            border: 2px solid #555;
+            align-self: flex-start;
+            margin-top: 10px;
+        }
+
+        #stamina-bar {
+            width: 100%;
+            height: 100%;
+            background: #00cc00;
+            transition: width 0.1s;
+        }
+
+        #message-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            pointer-events: auto;
+            text-align: center;
+        }
+
+        h1 {
+            font-family: 'Nosifer', cursive;
+            font-size: 3rem;
+            color: #ff0000;
+            margin-bottom: 20px;
+            animation: pulse 2s infinite;
+        }
+
+        p {
+            color: #ccc;
+            font-size: 1.2rem;
+            max-width: 600px;
+            margin: 0 auto 30px auto;
+            line-height: 1.5;
+        }
+
+        button {
+            background: #500;
+            color: #fff;
+            border: 2px solid #f00;
+            padding: 15px 30px;
+            font-size: 1.5rem;
+            font-family: 'Creepster', cursive;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+        }
+
+        button:hover {
+            background: #f00;
+            box-shadow: 0 0 20px #f00;
+            transform: scale(1.05);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        @keyframes pulse {
+            0% { text-shadow: 0 0 10px #500; }
+            50% { text-shadow: 0 0 25px #f00; transform: scale(1.02); }
+            100% { text-shadow: 0 0 10px #500; }
+        }
+
+        @keyframes shake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            10% { transform: translate(-1px, -2px) rotate(-1deg); }
+            20% { transform: translate(-3px, 0px) rotate(1deg); }
+            30% { transform: translate(3px, 2px) rotate(0deg); }
+            40% { transform: translate(1px, -1px) rotate(1deg); }
+            50% { transform: translate(-1px, 2px) rotate(-1deg); }
+            60% { transform: translate(-3px, 1px) rotate(0deg); }
+            70% { transform: translate(3px, 1px) rotate(-1deg); }
+            80% { transform: translate(-1px, -1px) rotate(1deg); }
+            90% { transform: translate(1px, 2px) rotate(0deg); }
+            100% { transform: translate(1px, -2px) rotate(-1deg); }
+        }
+
+        .shaking {
+            animation: shake 0.5s;
+            animation-iteration-count: infinite;
+        }
+        
+        #controls-hint {
+            position: absolute;
+            bottom: 20px;
+            width: 100%;
+            text-align: center;
+            color: #666;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+    
+    <div id="ui-layer">
+        <div>
+            <div id="score-display">Wortels: 0 / 3</div>
+            <div id="stamina-bar-container"><div id="stamina-bar"></div></div>
+        </div>
+        <div id="controls-hint" class="hidden">WASD / Pijltjes om te bewegen | SHIFT om te rennen</div>
+    </div>
+
+    <div id="message-overlay">
+        <h1>ONTSNAP AAN DE SINT</h1>
+        <p>Je bent stout geweest. Heel stout. Nu zit je vast in het donkere pakhuis.</p>
+        <p>Vind de <strong>3 Gouden Wortels</strong> om de uitgang te openen. Maar pas op... Hij loopt hier rond. Laat hem je niet vangen, anders ga je mee in de zak naar Spanje.</p>
+        <button id="start-btn">START HET SPEL</button>
+    </div>
+</div>
+
+<script>
+    // --- Configuration ---
+    const TILE_SIZE = 40;
+    const MAP_WIDTH = 25;
+    const MAP_HEIGHT = 18;
+    const FOV_RADIUS = 180; // Field of View radius
+    const SINT_SPEED_PATROL = 1.5;
+    const SINT_SPEED_CHASE = 3.2;
+    const PLAYER_SPEED = 2.5;
+    const PLAYER_RUN_SPEED = 4.5;
+    
+    // --- Audio Context ---
+    let audioCtx;
+    let heartbeatOsc;
+    let droneOsc;
+    
+    // --- Game State ---
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const uiLayer = document.getElementById('ui-layer');
+    const msgOverlay = document.getElementById('message-overlay');
+    const startBtn = document.getElementById('start-btn');
+    const scoreDisplay = document.getElementById('score-display');
+    const staminaBar = document.getElementById('stamina-bar');
+    const controlsHint = document.getElementById('controls-hint');
+    const gameContainer = document.getElementById('game-container');
+
+    let gameRunning = false;
+    let keys = {};
+    let carrotsCollected = 0;
+    let stamina = 100;
+    let sintProximity = 0; // 0 to 1, 1 is very close
+    
+    // Map Types: 0=Floor, 1=Wall, 2=Start, 3=Exit, 4=Carrot
+    // A simple handcrafted maze
+    const mapLayout = [
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+        [1,2,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,1],
+        [1,0,1,1,1,0,1,0,1,1,1,0,1,0,1,1,1,1,1,1,1,1,1,0,1],
+        [1,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,1],
+        [1,0,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,0,1,0,1,1,1],
+        [1,0,0,0,1,4,0,0,0,0,0,0,0,0,0,0,1,4,1,0,0,0,0,0,1],
+        [1,1,1,0,1,1,1,1,1,1,1,1,0,1,1,1,1,0,1,1,1,1,1,0,1],
+        [1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+        [1,0,1,1,1,1,0,1,1,0,1,0,1,1,0,1,1,1,1,1,1,1,1,0,1],
+        [1,0,0,0,0,1,0,1,0,0,0,0,1,0,0,1,0,0,0,0,0,0,0,0,1],
+        [1,1,1,1,0,1,0,1,0,1,1,1,1,0,1,1,0,1,1,1,1,0,1,1,1],
+        [1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,1,4,0,1,0,0,0,1],
+        [1,0,1,1,1,1,1,1,1,1,1,1,1,1,0,1,0,1,1,0,1,1,1,0,1],
+        [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+        [1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,1],
+        [1,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,1],
+        [1,3,1,0,0,0,1,1,1,0,0,0,1,1,1,1,1,1,1,0,0,0,1,1,1],
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+    ];
+
+    let player = { x: 0, y: 0, dir: 0, radius: 10 };
+    let sint = { x: 0, y: 0, radius: 14, speed: SINT_SPEED_PATROL, state: 'patrol', targetX: 0, targetY: 0, angle: 0 };
+    let carrots = [];
+    let exitPos = { x: 0, y: 0 };
+
+    // --- Initialization ---
+
+    function initGame() {
+        canvas.width = MAP_WIDTH * TILE_SIZE;
+        canvas.height = MAP_HEIGHT * TILE_SIZE;
+        
+        carrots = [];
+        
+        // Parse Map
+        for(let y=0; y<MAP_HEIGHT; y++) {
+            for(let x=0; x<MAP_WIDTH; x++) {
+                let type = mapLayout[y][x];
+                if(type === 2) { // Start
+                    player.x = x * TILE_SIZE + TILE_SIZE/2;
+                    player.y = y * TILE_SIZE + TILE_SIZE/2;
+                } else if(type === 3) { // Exit
+                    exitPos = { x: x * TILE_SIZE, y: y * TILE_SIZE };
+                } else if(type === 4) { // Carrot
+                    carrots.push({ x: x * TILE_SIZE + TILE_SIZE/2, y: y * TILE_SIZE + TILE_SIZE/2, active: true });
+                }
+            }
+        }
+
+        // Spawn Sint far away from player
+        sint.x = (MAP_WIDTH - 2) * TILE_SIZE;
+        sint.y = (MAP_HEIGHT - 2) * TILE_SIZE;
+        
+        carrotsCollected = 0;
+        stamina = 100;
+        gameRunning = true;
+        
+        scoreDisplay.innerText = "Wortels: 0 / 3";
+        msgOverlay.classList.add('hidden');
+        controlsHint.classList.remove('hidden');
+        
+        initAudio();
+        requestAnimationFrame(gameLoop);
+    }
+
+    // --- Input Handling ---
+
+    window.addEventListener('keydown', (e) => {
+        keys[e.key.toLowerCase()] = true;
+        if(e.shiftKey) keys['shift'] = true;
+    });
+
+    window.addEventListener('keyup', (e) => {
+        keys[e.key.toLowerCase()] = false;
+        if(!e.shiftKey) keys['shift'] = false;
+    });
+
+    startBtn.addEventListener('click', () => {
+        initGame();
+    });
+
+    // --- Physics & Logic ---
+
+    function isWall(x, y) {
+        let gridX = Math.floor(x / TILE_SIZE);
+        let gridY = Math.floor(y / TILE_SIZE);
+        if(gridX < 0 || gridX >= MAP_WIDTH || gridY < 0 || gridY >= MAP_HEIGHT) return true;
+        return mapLayout[gridY][gridX] === 1;
+    }
+
+    function checkCollision(circle, x, y) {
+        // Simple circle vs box collision for walls
+        let testX = circle.x + x;
+        let testY = circle.y + y;
+        
+        // Check 4 corners of the bounding box of the circle
+        let offset = circle.radius * 0.8;
+        if (!isWall(testX - offset, testY - offset) &&
+            !isWall(testX + offset, testY - offset) &&
+            !isWall(testX - offset, testY + offset) &&
+            !isWall(testX + offset, testY + offset)) {
+            return true;
+        }
+        return false;
+    }
+
+    function updatePlayer() {
+        let speed = PLAYER_SPEED;
+        let isRunning = keys['shift'] && stamina > 0;
+        
+        if (isRunning) {
+            speed = PLAYER_RUN_SPEED;
+            stamina -= 0.8;
+            if(stamina < 0) stamina = 0;
+        } else {
+            if(stamina < 100) stamina += 0.4;
+        }
+
+        staminaBar.style.width = stamina + "%";
+        if(stamina < 20) staminaBar.style.background = "#f00";
+        else staminaBar.style.background = "#00cc00";
+
+        let dx = 0; 
+        let dy = 0;
+
+        if (keys['w'] || keys['arrowup']) dy = -speed;
+        if (keys['s'] || keys['arrowdown']) dy = speed;
+        if (keys['a'] || keys['arrowleft']) dx = -speed;
+        if (keys['d'] || keys['arrowright']) dx = speed;
+
+        if (dx !== 0 && dy !== 0) {
+            dx *= 0.707;
+            dy *= 0.707;
+        }
+
+        if (checkCollision(player, dx, 0)) player.x += dx;
+        if (checkCollision(player, 0, dy)) player.y += dy;
+
+        // Collectibles
+        carrots.forEach(c => {
+            if(c.active) {
+                let dist = Math.hypot(player.x - c.x, player.y - c.y);
+                if(dist < 20) {
+                    c.active = false;
+                    carrotsCollected++;
+                    scoreDisplay.innerText = `Wortels: ${carrotsCollected} / 3`;
+                    playSound('pickup');
+                    if(carrotsCollected === 3) {
+                        scoreDisplay.innerText = "ZOEK DE UITGANG!";
+                        scoreDisplay.style.color = "#fff";
+                    }
+                }
+            }
+        });
+
+        // Exit
+        if(carrotsCollected >= 3) {
+            // Check exit collision (Exit is a tile)
+            let exitCenterX = exitPos.x + TILE_SIZE/2;
+            let exitCenterY = exitPos.y + TILE_SIZE/2;
+            let dist = Math.hypot(player.x - exitCenterX, player.y - exitCenterY);
+            if(dist < 20) {
+                endGame(true);
+            }
+        }
+    }
+
+    function updateSint() {
+        // Distance to player
+        let dx = player.x - sint.x;
+        let dy = player.y - sint.y;
+        let dist = Math.hypot(dx, dy);
+
+        // Raycast line of sight
+        let hasLineOfSight = true;
+        let steps = dist / 10;
+        for(let i=0; i<steps; i++) {
+            let cx = sint.x + (dx/steps)*i;
+            let cy = sint.y + (dy/steps)*i;
+            if(isWall(cx, cy)) {
+                hasLineOfSight = false;
+                break;
+            }
+        }
+
+        // Logic
+        if (hasLineOfSight) {
+            sint.state = 'chase';
+            sint.targetX = player.x;
+            sint.targetY = player.y;
+        } else {
+            // If lost sight, go to last seen location then random
+            if (Math.hypot(sint.x - sint.targetX, sint.y - sint.targetY) < 10) {
+                sint.state = 'patrol';
+                // Pick random valid tile
+                let found = false;
+                while(!found) {
+                    let rx = Math.floor(Math.random() * MAP_WIDTH);
+                    let ry = Math.floor(Math.random() * MAP_HEIGHT);
+                    if(mapLayout[ry][rx] === 0) {
+                        sint.targetX = rx * TILE_SIZE + TILE_SIZE/2;
+                        sint.targetY = ry * TILE_SIZE + TILE_SIZE/2;
+                        found = true;
+                    }
+                }
+            }
+        }
+
+        let moveSpeed = (sint.state === 'chase') ? SINT_SPEED_CHASE : SINT_SPEED_PATROL;
+        
+        let moveAngle = Math.atan2(sint.targetY - sint.y, sint.targetX - sint.x);
+        let moveDx = Math.cos(moveAngle) * moveSpeed;
+        let moveDy = Math.sin(moveAngle) * moveSpeed;
+
+        // Simple wall slide for enemy
+        if (checkCollision(sint, moveDx, 0)) sint.x += moveDx;
+        if (checkCollision(sint, 0, moveDy)) sint.y += moveDy;
+
+        // Visual wobble
+        sint.angle += 0.1;
+
+        // Kill player
+        if(dist < 20) {
+            endGame(false);
+        }
+
+        // Audio Proximity
+        sintProximity = Math.max(0, 1 - (dist / 300));
+        updateSound();
+    }
+
+    // --- Audio System ---
+    
+    function initAudio() {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if(audioCtx.state === 'suspended') audioCtx.resume();
+
+        // Background Drone
+        if(!droneOsc) {
+            droneOsc = audioCtx.createOscillator();
+            let gain = audioCtx.createGain();
+            droneOsc.type = 'sawtooth';
+            droneOsc.frequency.value = 50;
+            droneOsc.connect(gain);
+            gain.connect(audioCtx.destination);
+            gain.gain.value = 0.05;
+            droneOsc.start();
+            droneOsc.gainNode = gain;
+        }
+    }
+
+    function updateSound() {
+        if(!droneOsc) return;
+        
+        // Pitch rises as Sint gets closer
+        droneOsc.frequency.value = 50 + (sintProximity * 100);
+        droneOsc.gainNode.gain.value = 0.05 + (sintProximity * 0.1);
+
+        // Heartbeat effect (simulated via volume modulation or just intensity)
+        if(sintProximity > 0.5) {
+            gameContainer.classList.add('shaking');
+        } else {
+            gameContainer.classList.remove('shaking');
+        }
+    }
+
+    function playSound(type) {
+        if(!audioCtx) return;
+        let osc = audioCtx.createOscillator();
+        let gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        if(type === 'pickup') {
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1);
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.1);
+        } else if (type === 'scream') {
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.5);
+            gain.gain.value = 0.5;
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.5);
+        }
+    }
+
+    // --- Rendering ---
+
+    function draw() {
+        // Clear background
+        ctx.fillStyle = '#111';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Draw Map Tiles (Only visible ones or all then cover?)
+        // Drawing all for simplicity, lighting will hide them
+        for(let y=0; y<MAP_HEIGHT; y++) {
+            for(let x=0; x<MAP_WIDTH; x++) {
+                let type = mapLayout[y][x];
+                let tx = x * TILE_SIZE;
+                let ty = y * TILE_SIZE;
+
+                if(type === 1) { // Wall
+                    ctx.fillStyle = '#333';
+                    ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
+                    ctx.strokeStyle = '#222';
+                    ctx.strokeRect(tx, ty, TILE_SIZE, TILE_SIZE);
+                } else if(type === 3) { // Exit
+                    ctx.fillStyle = carrotsCollected >= 3 ? '#0f0' : '#500';
+                    ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
+                    ctx.fillStyle = '#fff';
+                    ctx.font = '12px Arial';
+                    ctx.fillText("UIT", tx+5, ty+25);
+                } else { // Floor
+                    ctx.fillStyle = '#151515';
+                    ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
+                }
+            }
+        }
+
+        // Draw Carrots
+        carrots.forEach(c => {
+            if(c.active) {
+                ctx.fillStyle = 'orange';
+                ctx.beginPath();
+                ctx.arc(c.x, c.y, 6, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#0f0'; // Leaf
+                ctx.fillRect(c.x-2, c.y-10, 4, 6);
+            }
+        });
+
+        // Draw Player
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(player.x, player.y, player.radius, 0, Math.PI*2);
+        ctx.fill();
+
+        // Draw Sint (Scary Mitre)
+        // Only draw if within reasonable distance to not spoil location, but he glows through walls slightly
+        let sintDist = Math.hypot(player.x - sint.x, player.y - sint.y);
+        
+        if (sintDist < FOV_RADIUS + 50) {
+            ctx.save();
+            ctx.translate(sint.x, sint.y);
+            ctx.rotate(Math.sin(sint.angle)*0.2);
+            
+            // Glow
+            let grad = ctx.createRadialGradient(0, 0, 10, 0, 0, 40);
+            grad.addColorStop(0, 'rgba(255, 0, 0, 0.8)');
+            grad.addColorStop(1, 'rgba(255, 0, 0, 0)');
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(0, 0, 40, 0, Math.PI*2);
+            ctx.fill();
+
+            // Shape (Mitre)
+            ctx.fillStyle = '#900';
+            ctx.beginPath();
+            ctx.moveTo(-10, 10);
+            ctx.lineTo(10, 10);
+            ctx.lineTo(10, -10);
+            ctx.lineTo(0, -20);
+            ctx.lineTo(-10, -10);
+            ctx.closePath();
+            ctx.fill();
+            
+            // Cross
+            ctx.fillStyle = '#da0';
+            ctx.fillRect(-2, -15, 4, 20);
+            ctx.fillRect(-8, -8, 16, 4);
+
+            // Eyes
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(-4, 0, 2, 0, Math.PI*2);
+            ctx.arc(4, 0, 2, 0, Math.PI*2);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        // Lighting / Fog of War
+        // Create a canvas-sized black rectangle with a hole cut out
+        
+        ctx.save();
+        ctx.globalCompositeOperation = 'destination-in';
+        
+        let grd = ctx.createRadialGradient(player.x, player.y, 40, player.x, player.y, FOV_RADIUS);
+        grd.addColorStop(0, 'rgba(0, 0, 0, 1)');
+        grd.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        
+        ctx.fillStyle = grd;
+        ctx.beginPath();
+        ctx.arc(player.x, player.y, FOV_RADIUS, 0, Math.PI*2);
+        ctx.fill();
+        
+        ctx.restore();
+
+        // Darkness overlay (to make non-visible areas truly black)
+        ctx.save();
+        ctx.globalCompositeOperation = 'source-over'; // Default
+        // We need to draw black everywhere EXCEPT where the gradient was
+        // This is tricky with single canvas.
+        // Alternative approach: Draw full black overlay with radial gradient transparency.
+        
+        // Let's redo lighting:
+        // 1. Draw game world.
+        // 2. Draw big black rectangle over everything.
+        // 3. Use 'destination-out' to cut a hole.
+        ctx.restore();
+    }
+
+    // Better Lighting Approach for Horror
+    function drawLighting() {
+        ctx.save();
+        ctx.globalCompositeOperation = 'source-over';
+        
+        // Fill entire screen with darkness
+        // Create radial gradient at player pos
+        let gradient = ctx.createRadialGradient(player.x, player.y, 30, player.x, player.y, FOV_RADIUS);
+        gradient.addColorStop(0, 'rgba(0,0,0,0)'); // Transparent at center
+        gradient.addColorStop(0.8, 'rgba(0,0,0,0.95)'); // Dark
+        gradient.addColorStop(1, 'rgba(0,0,0,1)'); // Pitch black
+
+        // Fill "outside" the circle with black using path logic is hard.
+        // Instead, fill whole screen black, then erase circle?
+        // No, fill whole screen with the INVERTED gradient? No.
+        
+        // Correct way:
+        // Draw the darkness
+        ctx.fillStyle = 'black';
+        ctx.beginPath();
+        ctx.rect(0, 0, canvas.width, canvas.height);
+        ctx.arc(player.x, player.y, FOV_RADIUS, 0, Math.PI*2, true); // Cutout
+        ctx.fill();
+
+        // Draw soft edge
+        ctx.globalCompositeOperation = 'source-over';
+        let edgeGrad = ctx.createRadialGradient(player.x, player.y, 30, player.x, player.y, FOV_RADIUS);
+        edgeGrad.addColorStop(0, 'rgba(0,0,0,0)');
+        edgeGrad.addColorStop(1, 'rgba(0,0,0,1)');
+        ctx.fillStyle = edgeGrad;
+        ctx.beginPath();
+        ctx.arc(player.x, player.y, FOV_RADIUS, 0, Math.PI*2);
+        ctx.fill();
+
+        ctx.restore();
+    }
+
+    function gameLoop() {
+        if(!gameRunning) return;
+        updatePlayer();
+        updateSint();
+        draw();
+        drawLighting();
+        requestAnimationFrame(gameLoop);
+    }
+
+    function endGame(win) {
+        gameRunning = false;
+        gameContainer.classList.remove('shaking');
+        
+        let title = win ? "ONTSNAPT!" : "GEPAKT!";
+        let desc = win 
+            ? "Je hebt de toorn van de Sint overleefd. Geniet van je vrijheid... tot volgend jaar." 
+            : "HET IS VOORBIJ. Je zit nu in de zak naar Spanje. Er is geen ontsnappen meer aan.";
+        let btnText = "OPNIEUW PROBEREN";
+        let color = win ? "#0f0" : "#f00";
+
+        if(!win) playSound('scream');
+
+        msgOverlay.querySelector('h1').innerText = title;
+        msgOverlay.querySelector('h1').style.color = color;
+        msgOverlay.querySelector('p').innerText = desc; // First p
+        msgOverlay.querySelectorAll('p')[1].innerText = ""; // Clear second p
+        startBtn.innerText = btnText;
+        msgOverlay.classList.remove('hidden');
+        controlsHint.classList.add('hidden');
+        
+        if(droneOsc) {
+            droneOsc.stop();
+            droneOsc = null;
+        }
+    }
+
+</script>
+</body>
+</html>
