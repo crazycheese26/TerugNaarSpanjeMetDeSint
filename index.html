@@ -219,7 +219,7 @@
     
     <div id="ui-layer">
         <div>
-            <div id="score-display">Wortels: 0 / 3</div>
+            <div id="score-display">ZOEK DE DEUR</div>
             <div id="stamina-bar-container"><div id="stamina-bar"></div></div>
         </div>
         <div id="controls-hint" class="hidden">W/S: Lopen | A/D: Draaien | SHIFT: Rennen</div>
@@ -228,15 +228,15 @@
     <div id="message-overlay">
         <h1>ONTSNAP AAN DE SINT</h1>
         <p>DOOM EDITIE</p>
-        <p>Je zit gevangen in een 3D doolhof. Vind de <strong>3 Gouden Wortels</strong>. Volg de bloedsporen... als je durft.</p>
+        <p>Je zit gevangen in een oneindig doolhof. Er is één <strong>Verborgen Deur</strong> om te ontsnappen. Volg de bloedsporen... als je durft.</p>
         <button id="start-btn">START</button>
     </div>
 </div>
 
 <script>
     // --- Configuration (Doom Style) ---
-    const MAP_WIDTH = 25;
-    const MAP_HEIGHT = 18;
+    const MAP_WIDTH = 30; // Larger map
+    const MAP_HEIGHT = 20;
     const SCREEN_WIDTH = 640;  
     const SCREEN_HEIGHT = 360;
     const FOV = 0.66; 
@@ -249,6 +249,7 @@
     // --- Audio ---
     let audioCtx;
     let droneOsc;
+    let nextAmbientSoundTime = 0;
     
     // --- Game State ---
     const canvas = document.getElementById('gameCanvas');
@@ -265,37 +266,17 @@
 
     let gameRunning = false;
     let keys = {};
-    let carrotsCollected = 0;
     let stamina = 100;
     let sintProximity = 0;
     let zBuffer = []; 
-    let startTime = 0; // For difficulty scaling
+    let startTime = 0; 
     
     // Hallucination State
     let hallucinations = []; // Array of active piet sprites
     let lastHallucinationCheck = 0;
 
-    // Map: 0=Floor, 1=Wall, 2=Start, 3=Exit, 4=Carrot, 5=Bloody Wall Hint
-    const mapLayout = [
-        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-        [1,2,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,1],
-        [1,0,1,1,1,0,1,0,1,1,1,0,1,0,1,1,1,1,1,1,1,1,1,0,1],
-        [1,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,1],
-        [1,0,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,0,1,0,1,1,1],
-        [1,0,0,0,1,4,0,0,0,0,0,0,0,0,0,0,5,4,1,0,0,0,0,0,1], // Added hint (5)
-        [1,1,1,0,1,1,1,1,1,1,1,1,0,1,1,1,1,0,1,1,1,1,1,0,1],
-        [1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-        [1,0,1,1,1,1,0,1,1,0,1,0,1,1,0,1,1,1,1,1,1,1,1,0,1],
-        [1,0,0,0,0,1,0,1,0,0,0,0,1,0,0,1,0,0,0,0,0,0,0,0,1],
-        [1,1,1,1,0,1,0,1,0,1,1,1,1,0,1,1,0,1,1,1,1,0,1,1,1],
-        [1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,1,4,0,1,0,0,0,1],
-        [1,0,1,1,1,1,1,1,1,1,1,1,1,1,0,1,0,1,1,0,1,1,1,0,1],
-        [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-        [1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,1],
-        [1,0,0,0,5,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,1], // Added hint (5) near carrot path
-        [1,3,1,0,0,0,1,1,1,0,0,0,1,1,1,1,1,1,1,0,0,0,1,1,1],
-        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
-    ];
+    // Map: 0=Floor, 1=Wall, 2=Start, 3=Exit (Door sprite), 5=Bloody Wall Hint
+    let mapLayout = [];
 
     // Player (camera)
     let posX = 0, posY = 0; 
@@ -325,8 +306,8 @@
             if (type === 'wall' || type === 'wall_bloody') {
                 // Bricks
                 cx.fillStyle = color2;
-                for(let i=0; i<100; i++) cx.fillRect(Math.random()*64, Math.random()*64, 2, 2); 
-                cx.fillStyle = 'rgba(0,0,0,0.3)';
+                for(let i=0; i<150; i++) cx.fillRect(Math.random()*64, Math.random()*64, 2, 2); 
+                cx.fillStyle = 'rgba(0,0,0,0.4)';
                 cx.fillRect(0, 0, 64, 2); 
                 cx.fillRect(0, 32, 64, 2); 
                 cx.fillRect(0, 0, 2, 32); 
@@ -334,25 +315,19 @@
 
                 if (type === 'wall_bloody') {
                     // Blood stains / Hints
-                    cx.fillStyle = '#800';
+                    cx.fillStyle = '#900';
                     cx.beginPath();
-                    cx.arc(32, 32, 20, 0, Math.PI*2);
+                    // Draw a messy handprint shape
+                    cx.arc(32, 32, 15, 0, Math.PI*2);
                     cx.fill();
-                    // Drips
-                    cx.fillRect(28, 32, 4, 30);
-                    cx.fillRect(36, 32, 2, 20);
-                    cx.fillStyle = '#f00';
-                    cx.font = 'bold 20px Arial';
-                    cx.fillText("?", 25, 38);
+                    cx.fillRect(25, 40, 4, 15);
+                    cx.fillRect(35, 40, 4, 10);
+                    cx.fillRect(30, 40, 4, 20);
+                    cx.font = '20px serif';
+                    cx.fillStyle = '#c00';
+                    cx.fillText("HIER", 10, 25);
                 }
-            } else if (type === 'exit') {
-                cx.fillStyle = '#0f0';
-                cx.font = '30px Arial';
-                cx.fillText("UIT", 5, 40);
-                cx.strokeStyle = '#fff';
-                cx.lineWidth = 4;
-                cx.strokeRect(2,2,60,60);
-            }
+            } 
             return c;
         }
 
@@ -361,12 +336,23 @@
             c.width = 64; c.height = 64;
             const cx = c.getContext('2d');
             
-            if (type === 'carrot') {
-                cx.fillStyle = 'orange';
-                cx.beginPath(); cx.moveTo(32, 60); cx.lineTo(15, 15); cx.lineTo(49, 15); cx.fill();
-                cx.fillStyle = '#0f0'; // Leaf
-                cx.fillRect(28, 0, 8, 15);
-                cx.strokeStyle = 'yellow'; cx.lineWidth=2; cx.stroke();
+            if (type === 'door') {
+                // Secret Door
+                cx.fillStyle = '#321'; // Dark wood
+                cx.fillRect(10, 0, 44, 64);
+                cx.strokeStyle = '#532';
+                cx.lineWidth = 2;
+                cx.strokeRect(10, 0, 44, 64);
+                // Planks
+                cx.beginPath(); cx.moveTo(10, 20); cx.lineTo(54, 20); cx.stroke();
+                cx.beginPath(); cx.moveTo(10, 40); cx.lineTo(54, 40); cx.stroke();
+                // Symbol
+                cx.fillStyle = '#d00';
+                cx.font = '24px serif';
+                cx.fillText("†", 26, 35);
+                // Knob
+                cx.fillStyle = '#aa0';
+                cx.beginPath(); cx.arc(48, 35, 3, 0, Math.PI*2); cx.fill();
             } else if (type === 'sint') {
                 // Mitre
                 cx.fillStyle = '#900';
@@ -378,14 +364,14 @@
                 cx.beginPath(); cx.arc(24, 45, 1, 0, Math.PI*2); cx.arc(40, 45, 1, 0, Math.PI*2); cx.fill();
             } else if (type === 'piet') {
                 // Scary shadow figure
-                cx.fillStyle = '#000'; // Dark skin/suit (Shadowy)
-                cx.beginPath(); cx.arc(32, 20, 10, 0, Math.PI*2); cx.fill(); // Head
-                cx.fillRect(22, 30, 20, 34); // Body
-                // Feather
-                cx.strokeStyle = '#f0f'; cx.lineWidth=3; cx.beginPath(); cx.moveTo(32, 10); cx.lineTo(45, 0); cx.stroke();
-                // Eyes
-                cx.fillStyle = '#fff';
-                cx.fillRect(28, 18, 2, 2); cx.fillRect(34, 18, 2, 2);
+                cx.fillStyle = '#111'; // Pitch black
+                cx.beginPath(); cx.arc(32, 20, 12, 0, Math.PI*2); cx.fill(); // Head
+                cx.fillRect(20, 30, 24, 34); // Body
+                // Feather (Bright color to stand out in dark)
+                cx.strokeStyle = '#a0a'; cx.lineWidth=3; cx.beginPath(); cx.moveTo(32, 10); cx.lineTo(50, 0); cx.stroke();
+                // Glowing Eyes
+                cx.fillStyle = '#ff0';
+                cx.fillRect(28, 18, 3, 3); cx.fillRect(36, 18, 3, 3);
             }
             return c;
         }
@@ -394,19 +380,14 @@
             const c = document.createElement('canvas');
             c.width = 300; c.height = 300;
             const cx = c.getContext('2d');
-            // Background
             cx.fillStyle = '#000';
             cx.fillRect(0,0,300,300);
-            // Scary Face
             cx.fillStyle = '#f00';
             cx.beginPath(); cx.arc(150, 150, 100, 0, Math.PI*2); cx.fill();
             cx.fillStyle = '#000';
-            // Eyes
             cx.beginPath(); cx.ellipse(110, 130, 20, 40, 0, 0, Math.PI*2); cx.fill();
             cx.beginPath(); cx.ellipse(190, 130, 20, 40, 0, 0, Math.PI*2); cx.fill();
-            // Mouth
             cx.beginPath(); cx.moveTo(100, 200); cx.quadraticCurveTo(150, 280, 200, 200); cx.fill();
-            // Pupils
             cx.fillStyle = '#fff';
             cx.beginPath(); cx.arc(110, 130, 5, 0, Math.PI*2); cx.fill();
             cx.beginPath(); cx.arc(190, 130, 5, 0, Math.PI*2); cx.fill();
@@ -415,8 +396,7 @@
 
         textures.wall = createTexture('#444', '#555', 'wall'); 
         textures.wall_bloody = createTexture('#444', '#555', 'wall_bloody');
-        textures.exit = createTexture('#050', '#0a0', 'exit');
-        textures.carrot = createSprite('carrot');
+        textures.door = createSprite('door');
         textures.sint = createSprite('sint');
         textures.piet = createSprite('piet');
         
@@ -424,7 +404,117 @@
         const jumpImg = document.createElement('img');
         jumpImg.src = jumpCanvas.toDataURL();
         jumpImg.id = "jumpscare-img";
+        jumpscareOverlay.innerHTML = '';
         jumpscareOverlay.appendChild(jumpImg);
+    }
+
+    // --- Map Generation ---
+    function generateMap() {
+        // Initialize with walls
+        let map = [];
+        for(let y=0; y<MAP_HEIGHT; y++) {
+            let row = [];
+            for(let x=0; x<MAP_WIDTH; x++) {
+                row.push(1);
+            }
+            map.push(row);
+        }
+
+        // Maze Generation (Recursive Backtracker)
+        // Dit zorgt voor echte doolhof gangen in plaats van open ruimtes
+        let stack = [];
+        let startX = 1;
+        let startY = 1;
+        
+        map[startY][startX] = 0;
+        stack.push({x: startX, y: startY});
+        
+        while(stack.length > 0) {
+            let current = stack[stack.length - 1];
+            let neighbors = [];
+            
+            // Kijk 2 stappen in elke richting (voor muren tussenin)
+            let dirs = [
+                {x: 0, y: -2}, {x: 0, y: 2},
+                {x: -2, y: 0}, {x: 2, y: 0}
+            ];
+            
+            for(let d of dirs) {
+                let nx = current.x + d.x;
+                let ny = current.y + d.y;
+                
+                // Check bounds (houd 1 tegel rand)
+                if(nx > 0 && nx < MAP_WIDTH-1 && ny > 0 && ny < MAP_HEIGHT-1) {
+                    if(map[ny][nx] === 1) { // Als nog niet bezocht (muur)
+                        neighbors.push({x: nx, y: ny, dx: d.x/2, dy: d.y/2});
+                    }
+                }
+            }
+            
+            if(neighbors.length > 0) {
+                let chosen = neighbors[Math.floor(Math.random() * neighbors.length)];
+                // Verwijder muur tussen huidige en buurman
+                map[current.y + chosen.dy][current.x + chosen.dx] = 0;
+                // Markeer buurman als vloer
+                map[chosen.y][chosen.x] = 0;
+                stack.push({x: chosen.x, y: chosen.y});
+            } else {
+                stack.pop();
+            }
+        }
+
+        // Maak wat extra openingen (loops) zodat je niet te snel vastloopt
+        for(let i = 0; i < 40; i++) {
+            let rx = Math.floor(Math.random() * (MAP_WIDTH - 2)) + 1;
+            let ry = Math.floor(Math.random() * (MAP_HEIGHT - 2)) + 1;
+            if(map[ry][rx] === 1) {
+                // Check of het twee bestaande vloeren verbindt
+                let floorCount = 0;
+                if(map[ry-1][rx] === 0) floorCount++;
+                if(map[ry+1][rx] === 0) floorCount++;
+                if(map[ry][rx-1] === 0) floorCount++;
+                if(map[ry][rx+1] === 0) floorCount++;
+                
+                if(floorCount >= 2) map[ry][rx] = 0;
+            }
+        }
+
+        // Start Speler (Linksboven, want daar begint het algoritme altijd met een open plek)
+        posX = 1.5;
+        posY = 1.5;
+
+        // Plaats Exit (Ver weg van speler)
+        let placedExit = false;
+        while(!placedExit) {
+            let rx = Math.floor(Math.random() * MAP_WIDTH);
+            let ry = Math.floor(Math.random() * MAP_HEIGHT);
+            // Moet vloer zijn en redelijk ver weg (onderin of rechts)
+            if(map[ry][rx] === 0 && (rx > MAP_WIDTH/2 || ry > MAP_HEIGHT/2)) {
+                sprites.push({ x: rx+0.5, y: ry+0.5, type: 'door', active: true });
+                placedExit = true;
+                
+                // Hints op muren in de buurt
+                if(map[ry][rx-1] === 1) map[ry][rx-1] = 5;
+                else if(map[ry][rx+1] === 1) map[ry][rx+1] = 5;
+                else if(map[ry-1][rx] === 1) map[ry-1][rx] = 5;
+                else if(map[ry+1][rx] === 1) map[ry+1][rx] = 5;
+            }
+        }
+
+        // Plaats Sint (Ver weg van speler)
+        let placedSint = false;
+        while(!placedSint) {
+            let rx = Math.floor(Math.random() * MAP_WIDTH);
+            let ry = Math.floor(Math.random() * MAP_HEIGHT);
+            let dist = Math.hypot(rx - posX, ry - posY);
+            if(map[ry][rx] === 0 && dist > 15) {
+                sint = { x: rx+0.5, y: ry+0.5, type: 'sint', active: true };
+                sprites.push(sint);
+                placedSint = true;
+            }
+        }
+
+        return map;
     }
 
     // --- Initialization ---
@@ -437,32 +527,18 @@
         sprites = [];
         hallucinations = [];
         
-        // Parse Map
-        for(let y=0; y<MAP_HEIGHT; y++) {
-            for(let x=0; x<MAP_WIDTH; x++) {
-                let type = mapLayout[y][x];
-                if(type === 2) { // Start
-                    posX = x + 0.5;
-                    posY = y + 0.5;
-                    dirX = 1; dirY = 0;
-                    planeX = 0; planeY = 0.66;
-                } else if(type === 4) { // Carrot
-                    sprites.push({ x: x+0.5, y: y+0.5, type: 'carrot', active: true });
-                } else if(type === 3) {
-                    sprites.push({ x: x+0.5, y: y+0.5, type: 'exit', active: true });
-                }
-            }
-        }
-
-        sint = { x: MAP_WIDTH - 2.5, y: MAP_HEIGHT - 2.5, type: 'sint', active: true };
-        sprites.push(sint);
+        // Generate Map
+        mapLayout = generateMap();
         
-        carrotsCollected = 0;
+        // Reset Player Vectors
+        dirX = -1; dirY = 0;
+        planeX = 0; planeY = 0.66;
+        
         stamina = 100;
         gameRunning = true;
         startTime = Date.now();
+        nextAmbientSoundTime = Date.now() + 3000 + Math.random() * 5000;
         
-        scoreDisplay.innerText = "Wortels: 0 / 3";
         msgOverlay.classList.add('hidden');
         jumpscareOverlay.style.opacity = 0;
         controlsHint.classList.remove('hidden');
@@ -496,19 +572,19 @@
         // Rotation
         if (keys['d'] || keys['arrowright']) {
             let oldDirX = dirX;
-            dirX = dirX * Math.cos(ROT_SPEED) - dirY * Math.sin(ROT_SPEED);
-            dirY = oldDirX * Math.sin(ROT_SPEED) + dirY * Math.cos(ROT_SPEED);
-            let oldPlaneX = planeX;
-            planeX = planeX * Math.cos(ROT_SPEED) - planeY * Math.sin(ROT_SPEED);
-            planeY = oldPlaneX * Math.sin(ROT_SPEED) + planeY * Math.cos(ROT_SPEED);
-        }
-        if (keys['a'] || keys['arrowleft']) {
-            let oldDirX = dirX;
             dirX = dirX * Math.cos(-ROT_SPEED) - dirY * Math.sin(-ROT_SPEED);
             dirY = oldDirX * Math.sin(-ROT_SPEED) + dirY * Math.cos(-ROT_SPEED);
             let oldPlaneX = planeX;
             planeX = planeX * Math.cos(-ROT_SPEED) - planeY * Math.sin(-ROT_SPEED);
             planeY = oldPlaneX * Math.sin(-ROT_SPEED) + planeY * Math.cos(-ROT_SPEED);
+        }
+        if (keys['a'] || keys['arrowleft']) {
+            let oldDirX = dirX;
+            dirX = dirX * Math.cos(ROT_SPEED) - dirY * Math.sin(ROT_SPEED);
+            dirY = oldDirX * Math.sin(ROT_SPEED) + dirY * Math.cos(ROT_SPEED);
+            let oldPlaneX = planeX;
+            planeX = planeX * Math.cos(ROT_SPEED) - planeY * Math.sin(ROT_SPEED);
+            planeY = oldPlaneX * Math.sin(ROT_SPEED) + planeY * Math.cos(ROT_SPEED);
         }
 
         // Move
@@ -535,17 +611,18 @@
         }
 
         // --- Zwarte Piet Hallucinations ---
-        if (now - lastHallucinationCheck > 2000) { // Check every 2s
+        if (now - lastHallucinationCheck > 1000) { // Check every 1s (Increased Freq)
             lastHallucinationCheck = now;
-            // Chance to spawn
-            if (hallucinations.length === 0 && Math.random() < 0.3) {
-                // Spawn vector: 8-12 units ahead
-                let spawnDist = 8 + Math.random() * 4;
-                let hX = posX + dirX * spawnDist;
-                let hY = posY + dirY * spawnDist;
+            
+            // Allow up to 3 active hallucinations, 40% chance spawn
+            if (hallucinations.length < 3 && Math.random() < 0.4) {
+                // Spawn vector: 5-10 units ahead (Closer)
+                let spawnDist = 5 + Math.random() * 5;
+                let hX = posX + dirX * spawnDist + (Math.random()-0.5)*2; // Add some jitter
+                let hY = posY + dirY * spawnDist + (Math.random()-0.5)*2;
                 
-                // Ensure valid location (empty space)
-                if (hX > 0 && hX < MAP_WIDTH && hY > 0 && hY < MAP_HEIGHT) {
+                // Ensure valid location
+                if (hX > 1 && hX < MAP_WIDTH-1 && hY > 1 && hY < MAP_HEIGHT-1) {
                     if (mapLayout[Math.floor(hY)][Math.floor(hX)] === 0) {
                         let piet = { x: hX, y: hY, type: 'piet', active: true, spawnTime: now };
                         hallucinations.push(piet);
@@ -560,24 +637,19 @@
             let p = hallucinations[i];
             let distToPiet = Math.hypot(posX - p.x, posY - p.y);
             
-            // Vanish if too close or too old
-            if (distToPiet < 3 || (now - p.spawnTime > 4000)) {
-                p.active = false; // For renderer
+            // Vanish if SUPER close (1 unit) or old (3s)
+            if (distToPiet < 1.5 || (now - p.spawnTime > 3000)) {
+                p.active = false; 
                 hallucinations.splice(i, 1);
-                // Remove from sprites array
                 let spriteIndex = sprites.indexOf(p);
                 if (spriteIndex > -1) sprites.splice(spriteIndex, 1);
             }
         }
 
-
-        // --- Sint AI & Dynamic Speed ---
-        // Base speed 0.02, increases by 0.0005 every second
+        // --- Sint AI ---
         let timeAlive = (now - startTime) / 1000;
-        let sintSpeed = 0.02 + (timeAlive * 0.0002);
-        if (carrotsCollected === 3) sintSpeed += 0.02; // Enrage bonus
-        // Cap speed
-        if (sintSpeed > 0.065) sintSpeed = 0.065;
+        let sintSpeed = 0.02 + (timeAlive * 0.0003);
+        if (sintSpeed > 0.07) sintSpeed = 0.07;
 
         let dx = posX - sint.x;
         let dy = posY - sint.y;
@@ -591,30 +663,19 @@
             if (!isBlocking(mapLayout[Math.floor(sint.y + sy * 1.5)][Math.floor(sint.x)])) sint.y += sy;
         }
 
-        sintProximity = Math.max(0, 1 - (dist / 10)); 
-        updateSound();
+        sintProximity = Math.max(0, 1 - (dist / 12)); 
+        updateSound(now);
 
         if (dist < 0.5) {
             endGame(false);
         }
 
-        // Item Pickup
+        // Door Interaction
         sprites.forEach(s => {
-            if (!s.active || s.type === 'piet' || s.type === 'sint') return;
+            if (!s.active || s.type !== 'door') return;
             let d = Math.sqrt((posX - s.x)**2 + (posY - s.y)**2);
-            if (d < 0.5) {
-                if (s.type === 'carrot') {
-                    s.active = false;
-                    carrotsCollected++;
-                    scoreDisplay.innerText = `Wortels: ${carrotsCollected} / 3`;
-                    playSound('pickup');
-                    if(carrotsCollected === 3) {
-                        scoreDisplay.innerText = "VIND DE UITGANG!";
-                        scoreDisplay.style.color = "#fff";
-                    }
-                } else if (s.type === 'exit' && carrotsCollected >= 3) {
-                    endGame(true);
-                }
+            if (d < 0.8) {
+                 endGame(true);
             }
         });
     }
@@ -640,16 +701,58 @@
         }
     }
 
-    function updateSound() {
+    function updateSound(now) {
         if(!droneOsc) return;
-        droneOsc.frequency.value = 40 + (sintProximity * 80);
-        let vol = 0.05 + (sintProximity * 0.1);
+        droneOsc.frequency.value = 30 + (sintProximity * 100);
+        let vol = 0.05 + (sintProximity * 0.15);
         droneOsc.gainNode.gain.value = vol;
 
         if(sintProximity > 0.6) {
             gameContainer.classList.add('shaking');
         } else {
             gameContainer.classList.remove('shaking');
+        }
+
+        // Ambient Random Sounds
+        if (now > nextAmbientSoundTime) {
+            playAmbientSound();
+            nextAmbientSoundTime = now + 4000 + Math.random() * 6000;
+        }
+    }
+
+    function playAmbientSound() {
+        if(!audioCtx) return;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        const type = Math.floor(Math.random() * 3);
+        
+        if (type === 0) { // High pitch scratch
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1);
+            gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.2);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.2);
+        } else if (type === 1) { // Low whisper groan
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(80, audioCtx.currentTime);
+            osc.frequency.linearRampToValueAtTime(60, audioCtx.currentTime + 1.0);
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 1.5);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 1.5);
+        } else { // Weird warble
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+            osc.frequency.linearRampToValueAtTime(350, audioCtx.currentTime + 0.1);
+            osc.frequency.linearRampToValueAtTime(250, audioCtx.currentTime + 0.3);
+            gain.gain.value = 0.05;
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.5);
         }
     }
 
@@ -660,18 +763,8 @@
         osc.connect(gain);
         gain.connect(audioCtx.destination);
 
-        if(type === 'pickup') {
-            osc.type = 'square';
-            osc.frequency.setValueAtTime(600, audioCtx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1);
-            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
-            osc.start();
-            osc.stop(audioCtx.currentTime + 0.2);
-        } else if (type === 'scream') {
-            // Jumpscare Scream
+        if (type === 'scream') {
             osc.type = 'sawtooth';
-            // Discordant tritone sweep
             osc.frequency.setValueAtTime(600, audioCtx.currentTime);
             osc.frequency.linearRampToValueAtTime(100, audioCtx.currentTime + 0.3);
             
@@ -694,9 +787,9 @@
     // --- Raycasting Engine ---
 
     function draw() {
-        ctx.fillStyle = '#111'; // Ceiling
+        ctx.fillStyle = '#050000'; // Ceiling (Darker)
         ctx.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT / 2);
-        ctx.fillStyle = '#1a1a1a'; // Floor
+        ctx.fillStyle = '#100505'; // Floor (Darker)
         ctx.fillRect(0, SCREEN_HEIGHT / 2, SCREEN_WIDTH, SCREEN_HEIGHT / 2);
 
         zBuffer = []; 
@@ -817,13 +910,13 @@
             if (drawStartX < 0) drawStartX = 0;
             if (drawEndX >= SCREEN_WIDTH) drawEndX = SCREEN_WIDTH - 1;
 
-            let tex = textures.carrot;
-            if (sprite.type === 'exit') tex = textures.exit;
+            let tex;
+            if (sprite.type === 'door') tex = textures.door;
             else if (sprite.type === 'sint') tex = textures.sint;
             else if (sprite.type === 'piet') tex = textures.piet;
 
-            // Piet transparency (ghost effect)
-            if (sprite.type === 'piet') ctx.globalAlpha = 0.6;
+            // Piet transparency (ghost effect) but increased visibility
+            if (sprite.type === 'piet') ctx.globalAlpha = 0.8; 
             else ctx.globalAlpha = 1.0;
 
             for (let stripe = Math.floor(drawStartX); stripe < Math.floor(drawEndX); stripe++) {
@@ -875,9 +968,9 @@
     function showMenu(win) {
         let title = win ? "ONTSNAPT!" : "GEPAKT!";
         let desc = win 
-            ? "Je hebt de uitgang gevonden. Het Sinterklaasfeest is gered... voor jou." 
+            ? "Je bent door de deur ontsnapt. Je bent veilig... voor nu." 
             : "Sinterklaas heeft je gevonden. Volgend jaar ben jij Zwarte Piet.";
-        let btnText = "OPNIEUW";
+        let btnText = "OPNIEUW (NIEUWE MAP)";
         let color = win ? "#0f0" : "#f00";
 
         msgOverlay.querySelector('h1').innerText = title;
