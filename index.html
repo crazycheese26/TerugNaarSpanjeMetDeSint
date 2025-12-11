@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>De Wraak van de Sint - Jumpscare Edition</title>
+    <title>De Wraak van de Sint - Nightmare Edition</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Creepster&family=Nosifer&family=Roboto:wght@400;700&family=Caveat:wght@700&display=swap');
 
@@ -27,18 +27,19 @@
             align-items: center;
         }
 
-        /* CRT/VHS Effects */
         canvas {
             image-rendering: pixelated; 
             width: 100%;
             height: 100%;
-            filter: contrast(1.2) brightness(1.1) sepia(0.2); 
+            /* Verbeterde zichtbaarheid: minder contrast, minder donker */
+            filter: contrast(1.1) brightness(1.2) sepia(0.2) grayscale(0.1); 
+            transition: filter 0.2s;
         }
 
         .scanlines {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.2));
+            background: linear-gradient(to bottom, rgba(18, 16, 16, 0), rgba(0,0,0,0) 50%, rgba(0,0,0,0.5) 50%, rgba(0,0,0,0.5));
             background-size: 100% 4px;
             pointer-events: none;
             z-index: 50;
@@ -50,7 +51,7 @@
             background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIj48ZmlsdGVyIGlkPSJub2lzZSI+PGZlVHVyYnVsZW5jZSB0eXBlPSJmcmFjdGFsTm9pc2UiIGJhc2VGcmVxdWVuY3k9IjAuNjUiIG51bU9jdGF2ZXM9IjMiIHN0aXRjaFRpbGVzPSJzdGl0Y2giLz48L2ZpbHRlcj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWx0ZXI9InVybCgjbm9pc2UpIiBvcGFjaXR5PSIwLjA4Ii8+PC9zdmc+');
             pointer-events: none;
             z-index: 51;
-            opacity: 0.08;
+            opacity: 0.08; /* Iets minder ruis voor beter zicht */
             animation: noiseAnim 0.2s infinite;
             transition: opacity 0.1s;
         }
@@ -84,26 +85,27 @@
             text-align: center;
             opacity: 0;
             transition: opacity 0.5s;
-            background: rgba(0,0,0,0.7);
+            background: rgba(0,0,0,0.8);
             padding: 15px;
-            border-radius: 5px;
-            border: 1px solid #444;
+            border-radius: 2px;
+            border: 1px solid #300;
+            box-shadow: 0 0 10px #000;
             max-width: 80%;
             pointer-events: none;
         }
 
         #score-display {
-            color: #888;
+            color: #611;
             font-family: 'Creepster', cursive;
             font-size: 2rem;
-            opacity: 0.7;
+            opacity: 0.8;
             text-shadow: 2px 2px 0 #000;
         }
 
         #message-overlay {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: #050000;
+            background: #020000;
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -131,13 +133,14 @@
         h1 {
             font-family: 'Nosifer', cursive;
             font-size: 4rem;
-            color: #b00;
+            color: #800;
             margin-bottom: 20px;
             text-shadow: 4px 4px 0px #000;
+            letter-spacing: 5px;
         }
 
         p {
-            color: #666;
+            color: #888;
             font-size: 1.1rem;
             max-width: 500px;
             margin: 0 auto 30px auto;
@@ -147,7 +150,7 @@
 
         button {
             background: #100;
-            color: #800;
+            color: #900;
             border: 1px solid #400;
             padding: 20px 40px;
             font-size: 1.5rem;
@@ -156,37 +159,46 @@
             transition: all 0.2s;
             text-transform: uppercase;
             letter-spacing: 2px;
+            box-shadow: 0 0 10px #200;
         }
 
         button:hover {
             background: #300;
             color: #f00;
-            box-shadow: 0 0 20px #500;
+            box-shadow: 0 0 30px #600;
         }
 
         .hidden { display: none !important; }
 
-        /* Flashlight Vignette */
         #vignette {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            /* Will be updated via JS for proximity effect */
-            background: radial-gradient(circle at center, rgba(0,0,0,0) 20%, rgba(0,0,0,0.5) 40%, rgba(0,0,0,0.95) 70%, black 100%);
+            /* Iets helderder in het midden zodat het geen zwart gat is */
+            background: radial-gradient(circle at center, rgba(0,0,0,0) 25%, rgba(0,0,0,0.8) 50%, black 80%);
             pointer-events: none;
             z-index: 55;
             mix-blend-mode: multiply;
-            transition: box-shadow 0.2s;
+            transition: all 0.5s ease-out;
         }
 
-        /* Danger Overlay (Blood edges) */
         #danger-overlay {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            box-shadow: inset 0 0 0px #f00;
+            box-shadow: inset 0 0 0px #500;
             pointer-events: none;
             z-index: 56;
-            mix-blend-mode: overlay;
-            transition: box-shadow 0.2s;
+            mix-blend-mode: color-burn;
+            transition: box-shadow 0.1s;
+        }
+
+        #debug-log {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: red;
+            z-index: 999;
+            font-family: monospace;
+            pointer-events: none;
         }
     </style>
 </head>
@@ -208,28 +220,31 @@
         <div id="controls-hint" style="color:#444; font-family: monospace;">WASD / Shift</div>
     </div>
 
+    <div id="debug-log"></div>
+
     <div id="message-overlay">
         <h1>VERLOREN ZIELEN</h1>
-        <p>Je hebt alleen een zaklamp.</p>
-        <p>Kijk ze niet aan. Ze haten het als je kijkt.</p>
-        <button id="start-btn">BETREDEN</button>
+        <p>De pijlen verschijnen alleen als je goed kijkt.</p>
+        <p>Luister naar je hartslag. Ren niet tenzij het moet.</p>
+        <button id="start-btn">DURF JE?</button>
     </div>
 </div>
 
 <script>
     // --- Configuration ---
-    const MAP_WIDTH = 60; // Bigger map
+    const MAP_WIDTH = 60;
     const MAP_HEIGHT = 50;
     const SCREEN_WIDTH = 320; 
     const SCREEN_HEIGHT = 180;
     
-    const MOVE_SPEED = 0.07;
-    const RUN_SPEED = 0.12;
-    const ROT_SPEED = 0.05;
+    const MOVE_SPEED = 0.06;
+    const RUN_SPEED = 0.11;
+    const ROT_SPEED = 0.09; // Increased significantly for faster turning
     
     // --- Audio ---
     let audioCtx;
     let nextAmbientSoundTime = 0;
+    let nextHeartbeatTime = 0;
     
     // --- Game State ---
     const canvas = document.getElementById('gameCanvas');
@@ -240,6 +255,8 @@
     const loreTextEl = document.getElementById('lore-text');
     const dangerOverlay = document.getElementById('danger-overlay');
     const noiseOverlay = document.querySelector('.noise');
+    const vignetteEl = document.getElementById('vignette');
+    const debugLog = document.getElementById('debug-log');
 
     let gameRunning = false;
     let keys = {};
@@ -252,6 +269,7 @@
     let lastHallucinationCheck = 0;
 
     let mapLayout = [];
+    let distMap = []; 
 
     // Player
     let posX = 0, posY = 0; 
@@ -262,21 +280,25 @@
     let sint = { x: 0, y: 0, active: true, lastX: 0, lastY: 0 };
     let sprites = []; 
     
-    // Lore Database
     const loreMessages = [
-        "Het bloed op de muren... het wijst naar de uitgang.",
-        "Hij eet geen kinderen. Hij eet hun dromen.",
-        "Ik zag hem door de muur lopen. Dit is geen normaal gebouw.",
-        "Kijk hem niet in de ogen. Hij ruikt je angst.",
-        "5 December is de dag van het oordeel.",
-        "Volg de pijlen als je wilt leven.",
-        "Ze stormen op je af als je te lang staart."
+        "Volg de pijlen... ze weten de weg.",
+        "Hij is oud. Ouder dan de tijd.",
+        "Ik hoor hem ademen achter de muur.",
+        "Niet rennen. Hij hoort je hart.",
+        "5 December. De nacht van de klauwen.",
+        "Ze staan stil als je kijkt. Knipper niet.",
+        "Er is bloed aan de muren."
     ];
 
     // Textures
     const texWidth = 64;
     const texHeight = 64;
     let textures = {}; 
+
+    function logError(msg) {
+        debugLog.innerHTML += msg + "<br>";
+        console.error(msg);
+    }
 
     // --- Texture Generation ---
     function generateTextures() {
@@ -285,14 +307,14 @@
             c.width = texWidth; c.height = texHeight;
             const cx = c.getContext('2d');
             
-            // Base Color
-            cx.fillStyle = color1; 
+            // Lighter base for better visibility
+            cx.fillStyle = type.includes('wall') ? '#333' : color1; 
             cx.fillRect(0,0,64,64);
             
-            // Gritty noise
-            for(let i=0; i<300; i++) {
-                cx.fillStyle = Math.random()>0.5 ? '#000' : '#222';
-                cx.globalAlpha = 0.2;
+            // Heavy noise
+            for(let i=0; i<400; i++) {
+                cx.fillStyle = Math.random()>0.5 ? '#000' : '#111';
+                cx.globalAlpha = 0.3;
                 cx.fillRect(Math.random()*64, Math.random()*64, 2, 2);
             }
             cx.globalAlpha = 1.0;
@@ -303,25 +325,24 @@
                 
                 if (type === 'wall_bloody') {
                     cx.fillStyle = '#600'; 
-                    cx.font = 'bold 16px Courier';
-                    
-                    // Specific Arrow variants for navigation
-                    if (variant === 'arrow_left') {
-                        cx.beginPath(); cx.moveTo(50, 32); cx.lineTo(20, 32); cx.lineTo(30, 20); cx.moveTo(20, 32); cx.lineTo(30, 44);
-                        cx.lineWidth = 4; cx.strokeStyle = '#800'; cx.stroke();
-                    } else if (variant === 'arrow_right') {
-                         cx.beginPath(); cx.moveTo(14, 32); cx.lineTo(44, 32); cx.lineTo(34, 20); cx.moveTo(44, 32); cx.lineTo(34, 44);
-                        cx.lineWidth = 4; cx.strokeStyle = '#800'; cx.stroke();
-                    } else {
-                         // Random scary text
-                         cx.save();
-                         cx.translate(32, 32);
-                         cx.rotate((Math.random()-0.5)*0.5);
-                         cx.fillStyle = '#600';
-                         cx.fillText("†", -5, 5);
-                         cx.fillRect(-10, 10, 2, 20);
-                         cx.restore();
-                    }
+                    cx.globalAlpha = 0.8;
+                    cx.beginPath();
+                    cx.arc(32, 20, 15, 0, Math.PI*2);
+                    cx.fill();
+                    cx.fillRect(28, 20, 8, 30);
+                    cx.globalAlpha = 1.0;
+                } 
+                
+                if (variant === 'arrow_left') {
+                    cx.shadowColor = "#f00"; cx.shadowBlur = 10;
+                    cx.strokeStyle = '#a00'; cx.lineWidth = 6; // Brighter arrow
+                    cx.beginPath(); cx.moveTo(50, 32); cx.lineTo(15, 32); cx.lineTo(30, 15); cx.moveTo(15, 32); cx.lineTo(30, 49); cx.stroke();
+                    cx.shadowBlur = 0;
+                } else if (variant === 'arrow_right') {
+                    cx.shadowColor = "#f00"; cx.shadowBlur = 10;
+                    cx.strokeStyle = '#a00'; cx.lineWidth = 6;
+                    cx.beginPath(); cx.moveTo(14, 32); cx.lineTo(49, 32); cx.lineTo(34, 15); cx.moveTo(49, 32); cx.lineTo(34, 49); cx.stroke();
+                    cx.shadowBlur = 0;
                 }
             } 
             return c;
@@ -333,106 +354,115 @@
             const cx = c.getContext('2d');
             
             if (type === 'paper') {
-                cx.fillStyle = '#ffc';
-                cx.fillRect(44, 100, 40, 28); 
-                cx.fillStyle = '#000';
-                for(let i=0; i<4; i++) cx.fillRect(48, 105 + i*5, 30, 2); 
-                cx.shadowBlur = 15; cx.shadowColor = '#ffc';
-                cx.strokeStyle = '#ffc'; cx.strokeRect(44,100,40,28);
-                cx.shadowBlur = 0;
+                cx.fillStyle = '#ee9'; cx.fillRect(44, 105, 40, 23); 
+                cx.fillStyle = '#000'; for(let i=0; i<3; i++) cx.fillRect(48, 110 + i*5, 30, 2); 
             } else if (type === 'door') {
-                cx.fillStyle = '#222'; cx.fillRect(30, 0, 68, 128);
-                cx.strokeStyle = '#632'; cx.lineWidth = 4; cx.strokeRect(30, 0, 68, 128);
-                cx.fillStyle = '#a00'; cx.font = '40px serif'; cx.fillText("Ω", 50, 80);
+                cx.fillStyle = '#111'; cx.fillRect(30, 0, 68, 128);
+                cx.strokeStyle = '#500'; cx.lineWidth = 4; cx.strokeRect(30, 0, 68, 128);
+                cx.fillStyle = '#800'; cx.font = '40px serif'; cx.fillText("EXIT", 25, 80);
             } else if (type === 'sint') {
-                cx.fillStyle = '#800'; 
-                cx.beginPath(); cx.moveTo(40, 128); cx.lineTo(64, 20); cx.lineTo(88, 128); cx.fill();
-                cx.fillStyle = '#600';
-                cx.beginPath(); cx.moveTo(40, 128); cx.lineTo(30, 50); cx.lineTo(64, 20); cx.lineTo(98, 50); cx.lineTo(88, 128); cx.fill();
-                cx.strokeStyle = '#d90'; cx.lineWidth = 4;
-                cx.beginPath(); cx.moveTo(90, 128); cx.lineTo(100, 10); cx.stroke();
-                cx.beginPath(); cx.arc(100, 10, 5, 0, Math.PI*2); cx.stroke();
-                cx.fillStyle = '#eee'; 
-                cx.beginPath(); cx.arc(64, 30, 12, 0, Math.PI*2); cx.fill();
-                cx.fillStyle = '#a00';
-                cx.beginPath(); cx.moveTo(50, 25); cx.lineTo(64, -10); cx.lineTo(78, 25); cx.fill();
-                cx.strokeStyle = '#fa0'; cx.lineWidth=2;
-                cx.beginPath(); cx.moveTo(64, -10); cx.lineTo(64, 25); cx.stroke();
-                cx.fillStyle = '#f00'; 
-                cx.shadowBlur = 10; cx.shadowColor = 'red';
-                cx.beginPath(); cx.arc(60, 30, 2, 0, Math.PI*2); cx.fill();
-                cx.beginPath(); cx.arc(68, 30, 2, 0, Math.PI*2); cx.fill();
+                cx.fillStyle = '#3a0505'; 
+                cx.beginPath(); cx.moveTo(30, 128); cx.lineTo(50, 30); cx.lineTo(78, 30); cx.lineTo(98, 128); cx.fill();
+                cx.strokeStyle = '#642'; cx.lineWidth = 4;
+                cx.beginPath(); cx.moveTo(64, 128); cx.lineTo(64, 30); cx.stroke();
+                cx.strokeStyle = '#555'; cx.lineWidth = 3;
+                cx.beginPath(); cx.moveTo(90, 128); cx.lineTo(100, 20); cx.stroke();
+                cx.beginPath(); cx.arc(95, 20, 8, 0, Math.PI, true); cx.stroke();
+                cx.fillStyle = '#000'; 
+                cx.beginPath(); cx.arc(64, 25, 15, 0, Math.PI*2); cx.fill();
+                cx.fillStyle = '#500'; 
+                cx.beginPath(); cx.moveTo(49, 20); cx.lineTo(64, -25); cx.lineTo(79, 20); cx.fill();
+                cx.strokeStyle = '#862'; cx.lineWidth=2;
+                cx.beginPath(); cx.moveTo(64, -25); cx.lineTo(64, 20); cx.stroke();
+                cx.fillStyle = '#bbb'; 
+                cx.beginPath(); cx.moveTo(50, 30); cx.lineTo(58, 75); cx.lineTo(64, 60); cx.lineTo(70, 75); cx.lineTo(78, 30); cx.fill();
+                cx.fillStyle = '#dcc'; 
+                cx.beginPath(); cx.ellipse(64, 25, 10, 13, 0, 0, Math.PI*2); cx.fill();
+                cx.fillStyle = '#000';
+                cx.beginPath(); cx.arc(60, 22, 3.5, 0, Math.PI*2); cx.fill();
+                cx.beginPath(); cx.arc(68, 22, 3.5, 0, Math.PI*2); cx.fill();
+                cx.fillStyle = '#f00'; cx.shadowColor = '#f00'; cx.shadowBlur = 8;
+                cx.beginPath(); cx.arc(60, 22, 1, 0, Math.PI*2); cx.fill();
+                cx.beginPath(); cx.arc(68, 22, 1, 0, Math.PI*2); cx.fill();
                 cx.shadowBlur = 0;
-                cx.fillStyle = '#fff';
-                cx.beginPath(); cx.moveTo(52, 35); cx.lineTo(64, 60); cx.lineTo(76, 35); cx.fill();
+
             } else if (type === 'piet') {
-                cx.fillStyle = '#111'; 
-                cx.beginPath(); cx.ellipse(64, 80, 20, 40, 0, 0, Math.PI*2); cx.fill();
-                cx.beginPath(); cx.arc(64, 40, 18, 0, Math.PI*2); cx.fill();
-                cx.strokeStyle = '#222'; cx.lineWidth = 1; cx.stroke();
-                cx.strokeStyle = '#505'; cx.lineWidth=3; 
-                cx.beginPath(); cx.moveTo(64, 25); cx.lineTo(90, 10); cx.stroke();
+                cx.fillStyle = '#151020'; 
+                cx.beginPath(); cx.moveTo(64, 128); cx.lineTo(30, 128); cx.lineTo(40, 50); cx.lineTo(88, 50); cx.lineTo(98, 128); cx.fill();
+                cx.strokeStyle = '#ccc'; cx.lineWidth = 2;
+                cx.beginPath(); cx.moveTo(40, 50); cx.lineTo(50, 60); cx.lineTo(64, 50); cx.lineTo(78, 60); cx.lineTo(88, 50); cx.stroke();
+                cx.save();
+                cx.translate(64, 35);
+                cx.rotate(0.15); 
+                cx.fillStyle = '#050505'; 
+                cx.beginPath(); cx.ellipse(0, 0, 20, 28, 0, 0, Math.PI*2); cx.fill();
+                cx.fillStyle = '#301030';
+                cx.beginPath(); cx.ellipse(0, -20, 25, 10, 0.2, 0, Math.PI*2); cx.fill();
+                cx.strokeStyle = '#600'; cx.lineWidth=2; cx.beginPath(); cx.moveTo(10, -25); cx.lineTo(25, -45); cx.stroke(); // Horn/Feather
+                cx.fillStyle = '#000'; 
+                cx.beginPath(); cx.arc(-8, -2, 6, 0, Math.PI*2); cx.fill();
+                cx.beginPath(); cx.arc(8, -2, 6, 0, Math.PI*2); cx.fill();
                 cx.fillStyle = '#fff';
-                cx.shadowBlur = 10; cx.shadowColor = '#fff';
-                cx.beginPath(); cx.arc(58, 40, 3, 0, Math.PI*2); cx.fill();
-                cx.beginPath(); cx.arc(70, 40, 3, 0, Math.PI*2); cx.fill();
+                cx.shadowColor = '#fff'; cx.shadowBlur = 4;
+                cx.beginPath(); cx.arc(-8, -1, 1.5, 0, Math.PI*2); cx.fill();
+                cx.beginPath(); cx.arc(8, -3, 1.5, 0, Math.PI*2); cx.fill(); 
                 cx.shadowBlur = 0;
+                cx.strokeStyle = '#aaa'; cx.lineWidth = 2;
+                cx.beginPath(); cx.arc(0, 10, 12, 0, Math.PI); cx.stroke();
+                cx.lineWidth = 1;
+                cx.beginPath(); cx.moveTo(0, 10); cx.lineTo(0, 22); cx.stroke();
+                cx.beginPath(); cx.moveTo(-6, 11); cx.lineTo(-6, 21); cx.stroke();
+                cx.beginPath(); cx.moveTo(6, 11); cx.lineTo(6, 21); cx.stroke();
+                cx.restore();
             }
             return c;
         }
 
-        function createJumpscare() {
-            const c = document.createElement('canvas');
-            c.width = 400; c.height = 400;
-            const cx = c.getContext('2d');
-            cx.fillStyle = '#000'; cx.fillRect(0,0,400,400);
-            for(let i=0; i<1000; i++) {
-                cx.fillStyle = Math.random()>0.8?'#f00':'#200';
-                cx.fillRect(Math.random()*400, Math.random()*400, 5, 5);
-            }
-            cx.fillStyle = '#ccc';
-            cx.beginPath(); cx.arc(200, 180, 120, 0, Math.PI*2); cx.fill();
-            cx.fillRect(140, 180, 120, 150);
-            cx.fillStyle = '#000';
-            cx.beginPath(); cx.arc(150, 160, 30, 0, Math.PI*2); cx.fill();
-            cx.beginPath(); cx.arc(250, 160, 30, 0, Math.PI*2); cx.fill();
-            cx.beginPath(); cx.ellipse(200, 320, 60, 100, 0, 0, Math.PI*2); cx.fill();
-            cx.fillStyle = '#ff9';
-            for(let i=0; i<10; i++) {
-                cx.fillRect(150 + i*10, 250, 5, 20); 
-                cx.fillRect(150 + i*10, 380, 5, 20); 
-            }
-            return c;
-        }
-
-        textures.wall = createTexture('#444', '#333', 'wall', 0); 
-        // 5, 6, 7 reserved for blood
-        textures.wall_bloody_1 = createTexture('#444', '#333', 'wall_bloody', 'random');
-        
-        // 8 = Arrow Left, 9 = Arrow Right
-        textures.wall_arrow_left = createTexture('#444', '#333', 'wall_bloody', 'arrow_left');
-        textures.wall_arrow_right = createTexture('#444', '#333', 'wall_bloody', 'arrow_right');
-        
-        textures.door = createSprite('door');
-        textures.paper = createSprite('paper');
-        textures.sint = createSprite('sint');
-        textures.piet = createSprite('piet');
-        
         const jumpCanvas = createJumpscare();
         const jumpImg = document.createElement('img');
         jumpImg.src = jumpCanvas.toDataURL();
         jumpImg.id = "jumpscare-img";
         jumpscareOverlay.innerHTML = '';
         jumpscareOverlay.appendChild(jumpImg);
+
+        // Brighten up the walls slightly
+        textures.wall = createTexture('#444', '#2a2a2a', 'wall', 0); 
+        textures.wall_bloody = createTexture('#444', '#2a2a2a', 'wall_bloody', 'random');
+        textures.arrow_left = createTexture('#444', '#2a2a2a', 'wall', 'arrow_left');
+        textures.arrow_right = createTexture('#444', '#2a2a2a', 'wall', 'arrow_right');
+        
+        textures.door = createSprite('door');
+        textures.paper = createSprite('paper');
+        textures.sint = createSprite('sint');
+        textures.piet = createSprite('piet');
+    }
+
+    function createJumpscare() {
+        const c = document.createElement('canvas');
+        c.width = 400; c.height = 400;
+        const cx = c.getContext('2d');
+        cx.fillStyle = '#050000'; cx.fillRect(0,0,400,400);
+        cx.fillStyle = '#ccc'; cx.beginPath(); cx.ellipse(200, 200, 100, 140, 0, 0, Math.PI*2); cx.fill();
+        cx.fillStyle = '#000'; cx.beginPath(); cx.arc(160, 180, 25, 0, Math.PI*2); cx.fill();
+        cx.beginPath(); cx.arc(240, 180, 25, 0, Math.PI*2); cx.fill();
+        cx.beginPath(); cx.ellipse(200, 280, 40, 80, 0, 0, Math.PI*2); cx.fill();
+        cx.strokeStyle = '#800'; cx.lineWidth = 5;
+        cx.beginPath(); cx.moveTo(160, 200); cx.lineTo(160, 300); cx.stroke();
+        cx.beginPath(); cx.moveTo(240, 200); cx.lineTo(240, 300); cx.stroke();
+        return c;
     }
 
     // --- Map Generation ---
     function generateMap() {
         let map = [];
+        distMap = [];
+        
         for(let y=0; y<MAP_HEIGHT; y++) {
             let row = [];
-            for(let x=0; x<MAP_WIDTH; x++) row.push(1);
+            let distRow = [];
+            for(let x=0; x<MAP_WIDTH; x++) { row.push(1); distRow.push(-1); }
             map.push(row);
+            distMap.push(distRow);
         }
 
         let stack = [];
@@ -440,7 +470,6 @@
         map[startY][startX] = 0;
         stack.push({x: startX, y: startY});
         
-        // Recursive Backtracker
         while(stack.length > 0) {
             let current = stack[stack.length - 1];
             let neighbors = [];
@@ -460,43 +489,34 @@
             } else stack.pop();
         }
         
-        // Add random loops (holes)
-        for(let i=0; i<40; i++) {
+        for(let i=0; i<60; i++) {
             let rx = Math.floor(Math.random()*(MAP_WIDTH-2))+1;
             let ry = Math.floor(Math.random()*(MAP_HEIGHT-2))+1;
             if(map[ry][rx]===1) {
-                // Check if it connects two corridors
                 if((map[ry-1][rx]===0 && map[ry+1][rx]===0) || (map[ry][rx-1]===0 && map[ry][rx+1]===0)) map[ry][rx]=0;
             }
         }
-
-        // --- POIs: Big Rooms ---
-        for(let i=0; i<5; i++) {
+        for(let i=0; i<6; i++) {
              let rx = Math.floor(Math.random()*(MAP_WIDTH-6))+2;
              let ry = Math.floor(Math.random()*(MAP_HEIGHT-6))+2;
-             // Clear a 3x3 or 4x4 area
-             let size = Math.floor(Math.random()*2) + 3;
+             let size = 3;
              for(let cy=0; cy<size; cy++) {
                  for(let cx=0; cx<size; cx++) {
-                     if(ry+cy < MAP_HEIGHT-1 && rx+cx < MAP_WIDTH-1) {
-                         map[ry+cy][rx+cx] = 0;
-                     }
+                    if (ry+cy < MAP_HEIGHT && rx+cx < MAP_WIDTH) map[ry+cy][rx+cx] = 0;
                  }
              }
         }
 
         posX = 1.5; posY = 1.5;
 
-        // Place Exit Far Away
         let placedExit = false;
         let doorX = 0, doorY = 0;
-        
         let attempts = 0;
-        while(!placedExit && attempts < 1000) {
+        while(!placedExit && attempts < 2000) {
             attempts++;
             let rx = Math.floor(Math.random() * MAP_WIDTH);
             let ry = Math.floor(Math.random() * MAP_HEIGHT);
-            if(map[ry][rx] === 0 && Math.hypot(rx - posX, ry - posY) > 40) {
+            if(map[ry][rx] === 0 && Math.hypot(rx - posX, ry - posY) > 45) {
                 sprites.push({ x: rx+0.5, y: ry+0.5, type: 'door', active: true });
                 placedExit = true;
                 doorX = rx; doorY = ry;
@@ -508,17 +528,9 @@
              sprites.push({ x: doorX+0.5, y: doorY+0.5, type: 'door', active: true });
         }
 
-        // --- Navigation Hints (Breadth-First Search) ---
-        let distMap = [];
-        for(let y=0; y<MAP_HEIGHT; y++) {
-            let row = [];
-            for(let x=0; x<MAP_WIDTH; x++) row.push(-1);
-            distMap.push(row);
-        }
-        
+        // BFS for distances
         let q = [{x: doorX, y: doorY, dist: 0}];
         distMap[doorY][doorX] = 0;
-        
         while(q.length > 0) {
             let curr = q.shift();
             let dirs = [{x:0,y:-1}, {x:0,y:1}, {x:-1,y:0}, {x:1,y:0}];
@@ -534,41 +546,14 @@
             }
         }
 
-        for(let y=1; y<MAP_HEIGHT-1; y++) {
-            for(let x=1; x<MAP_WIDTH-1; x++) {
-                if(map[y][x] === 0 && distMap[y][x] > 5 && Math.random() < 0.04) {
-                    let currentDist = distMap[y][x];
-                    let bestDir = null;
-                    
-                    if (distMap[y-1][x] !== -1 && distMap[y-1][x] < currentDist) bestDir = 'N';
-                    else if (distMap[y+1][x] !== -1 && distMap[y+1][x] < currentDist) bestDir = 'S';
-                    else if (distMap[y][x-1] !== -1 && distMap[y][x-1] < currentDist) bestDir = 'W';
-                    else if (distMap[y][x+1] !== -1 && distMap[y][x+1] < currentDist) bestDir = 'E';
-                    
-                    if(bestDir === 'W') { 
-                         if(map[y-1][x]===1) map[y-1][x] = 8; 
-                         else if(map[y+1][x]===1) map[y+1][x] = 9; 
-                    } else if (bestDir === 'E') { 
-                         if(map[y-1][x]===1) map[y-1][x] = 9; 
-                         else if(map[y+1][x]===1) map[y+1][x] = 8; 
-                    } else if (bestDir === 'N') { 
-                        if(map[y][x+1]===1) map[y][x+1] = 8; 
-                        else if(map[y][x-1]===1) map[y][x-1] = 9; 
-                    } else if (bestDir === 'S') { 
-                        if(map[y][x+1]===1) map[y][x+1] = 9; 
-                        else if(map[y][x-1]===1) map[y][x-1] = 8; 
-                    }
-                }
-            }
-        }
-        
-        for(let i=0; i<30; i++) {
+        // Decor
+        for(let i=0; i<20; i++) {
              let rx = Math.floor(Math.random() * (MAP_WIDTH-2))+1;
              let ry = Math.floor(Math.random() * (MAP_HEIGHT-2))+1;
-             if(map[ry][rx] === 1) map[ry][rx] = 5;
+             if(map[ry][rx] === 1) map[ry][rx] = 5; 
         }
 
-        for(let i=0; i<10; i++) {
+        for(let i=0; i<8; i++) {
             let rx = Math.floor(Math.random() * MAP_WIDTH);
             let ry = Math.floor(Math.random() * MAP_HEIGHT);
             if(map[ry][rx] === 0) {
@@ -581,43 +566,55 @@
         while(!placedSint) {
             let rx = Math.floor(Math.random() * MAP_WIDTH);
             let ry = Math.floor(Math.random() * MAP_HEIGHT);
-            if(map[ry][rx] === 0 && Math.hypot(rx - posX, ry - posY) > 15) {
+            if(map[ry][rx] === 0 && Math.hypot(rx - posX, ry - posY) > 20) {
                 sint = { x: rx+0.5, y: ry+0.5, type: 'sint', active: true, lastX: rx, lastY: ry };
                 sprites.push(sint);
                 placedSint = true;
             }
         }
+
+        // FORCE SAFE SPAWN ZONE
+        // Ensure (1,1) and neighbors are EMPTY so player isn't in wall
+        map[1][1] = 0; map[1][2] = 0; map[2][1] = 0;
+        
         return map;
     }
 
-    // --- Init ---
     function initGame() {
-        canvas.width = SCREEN_WIDTH;
-        canvas.height = SCREEN_HEIGHT;
-        generateTextures();
-        sprites = [];
-        hallucinations = [];
-        mapLayout = generateMap();
-        
-        dirX = -1; dirY = 0;
-        planeX = 0; planeY = 0.66;
-        
-        gameRunning = true;
-        startTime = Date.now();
-        nextAmbientSoundTime = Date.now() + 2000;
-        
-        msgOverlay.classList.add('hidden');
-        jumpscareOverlay.style.opacity = 0;
-        noiseOverlay.style.opacity = 0.08;
-        initAudio();
-        requestAnimationFrame(gameLoop);
+        try {
+            canvas.width = SCREEN_WIDTH;
+            canvas.height = SCREEN_HEIGHT;
+            generateTextures();
+            sprites = [];
+            hallucinations = [];
+            mapLayout = generateMap();
+            
+            // Double check spawn
+            posX = 1.5; posY = 1.5;
+            dirX = -1; dirY = 0;
+            planeX = 0; planeY = 0.66;
+            
+            gameRunning = true;
+            startTime = Date.now();
+            nextAmbientSoundTime = Date.now() + 2000;
+            nextHeartbeatTime = Date.now();
+            
+            msgOverlay.classList.add('hidden');
+            jumpscareOverlay.style.opacity = 0;
+            noiseOverlay.style.opacity = 0.1;
+            initAudio();
+            
+            // Start loop safely
+            requestAnimationFrame(gameLoop);
+        } catch(e) {
+            logError("Init Error: " + e.message);
+        }
     }
 
     window.addEventListener('keydown', (e) => { keys[e.key.toLowerCase()] = true; if(e.shiftKey) keys['shift'] = true; });
     window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; if(!e.shiftKey) keys['shift'] = false; });
-    startBtn.addEventListener('click', () => { initGame(); });
+    startBtn.addEventListener('click', () => { initAudio(); initGame(); });
 
-    // --- Update ---
     function updateGame() {
         let now = Date.now();
         frameCount++;
@@ -640,7 +637,7 @@
         }
 
         let currentSpeed = keys['shift'] ? RUN_SPEED : MOVE_SPEED;
-        function isBlocking(val) { return val === 1 || (val >= 5 && val <= 9); } 
+        function isBlocking(val) { return val !== 0; } 
 
         if (keys['w'] || keys['arrowup']) {
             if(!isBlocking(mapLayout[Math.floor(posY)][Math.floor(posX + dirX * currentSpeed * 2)])) posX += dirX * currentSpeed;
@@ -651,7 +648,10 @@
             if(!isBlocking(mapLayout[Math.floor(posY - dirY * currentSpeed * 2)][Math.floor(posX)])) posY -= dirY * currentSpeed;
         }
 
-        // Lore
+        if (isBlocking(mapLayout[Math.floor(posY)][Math.floor(posX)])) {
+            posX = 1.5; posY = 1.5; 
+        }
+
         let nearbyPaper = null;
         sprites.forEach(s => {
             if(s.type === 'paper') {
@@ -662,13 +662,11 @@
         if(nearbyPaper) { loreTextEl.innerText = nearbyPaper; loreTextEl.style.opacity = 1; } 
         else { loreTextEl.style.opacity = 0; }
 
-        // --- NEW Hallucination Logic (Rush) ---
         if (now - lastHallucinationCheck > 300) { 
             lastHallucinationCheck = now;
-            // Spawn chance
-            if (hallucinations.length < 5 && Math.random() < 0.6) {
-                let spawnDist = 4 + Math.random() * 6;
-                let angle = Math.atan2(dirY, dirX) + (Math.random() - 0.5) * 1.5;
+            if (hallucinations.length < 4 && Math.random() < 0.6) {
+                let spawnDist = 5 + Math.random() * 8;
+                let angle = Math.atan2(dirY, dirX) + (Math.random() - 0.5) * 2.0;
                 let hX = posX + Math.cos(angle) * spawnDist;
                 let hY = posY + Math.sin(angle) * spawnDist;
                 if (hX > 1 && hX < MAP_WIDTH-1 && hY > 1 && hY < MAP_HEIGHT-1) {
@@ -678,8 +676,7 @@
                             type: 'piet', 
                             active: true, 
                             spawnTime: now,
-                            rushing: false,
-                            rushChecked: false
+                            rushing: false
                         };
                         hallucinations.push(piet);
                         sprites.push(piet);
@@ -694,56 +691,47 @@
             let pdy = posY - p.y;
             let distToPlayer = Math.sqrt(pdx*pdx + pdy*pdy);
 
-            // --- Rush Logic ---
-            // Calculate if player is looking at Piet
             let toPietX = p.x - posX;
             let toPietY = p.y - posY;
             let toPietLen = Math.hypot(toPietX, toPietY);
             toPietX /= toPietLen; toPietY /= toPietLen;
             let dot = dirX * toPietX + dirY * toPietY;
             
-            // If staring at it (dot > 0.65)
-            if (dot > 0.65 && !p.rushing) {
-                if(Math.random() < 0.05) { // Chance per frame to trigger rush
+            if (dot > 0.8 && !p.rushing) {
+                if(Math.random() < 0.005) { 
                     p.rushing = true;
                     playAmbientSound('rush_scream');
                 }
             }
 
             if(p.rushing) {
-                // Move very fast towards player
-                let rushSpeed = 0.25;
+                let rushSpeed = 0.28;
                 p.x += (pdx / distToPlayer) * rushSpeed;
                 p.y += (pdy / distToPlayer) * rushSpeed;
                 
-                // Impact
-                if(distToPlayer < 0.8) {
+                if(distToPlayer < 0.6) {
                     p.active = false;
                     hallucinations.splice(i, 1);
                     playAmbientSound('jumpscare_minor');
                     let spriteIndex = sprites.indexOf(p);
                     if (spriteIndex > -1) sprites.splice(spriteIndex, 1);
-                    // Glitch effect
-                    noiseOverlay.style.opacity = 0.9;
-                    setTimeout(() => { noiseOverlay.style.opacity = 0.08; }, 200);
+                    noiseOverlay.style.opacity = 1.0;
+                    setTimeout(() => { noiseOverlay.style.opacity = 0.1; }, 200);
                     continue; 
                 }
             } else {
-                // Normal vanish logic
-                if (distToPlayer < 2.5 || (now - p.spawnTime > 5000)) {
+                if (distToPlayer < 3.0 || (now - p.spawnTime > 8000)) {
                     p.active = false; 
                     hallucinations.splice(i, 1);
-                    playAmbientSound('vanish');
                     let spriteIndex = sprites.indexOf(p);
                     if (spriteIndex > -1) sprites.splice(spriteIndex, 1);
                 }
             }
         }
 
-        // Sint Logic
         let timeAlive = (now - startTime) / 1000;
-        let sintSpeed = 0.045 + (timeAlive * 0.0006);
-        if(sintSpeed > 0.11) sintSpeed = 0.11;
+        let sintSpeed = 0.042 + (timeAlive * 0.0005);
+        if(sintSpeed > 0.105) sintSpeed = 0.105;
 
         let dx = posX - sint.x;
         let dy = posY - sint.y;
@@ -751,7 +739,7 @@
         
         if (frameCount % 120 === 0) {
             let stuck = Math.hypot(sint.x - sint.lastX, sint.y - sint.lastY) < 0.1;
-            let tooFar = dist > 30; 
+            let tooFar = dist > 35; 
             if (stuck || tooFar) {
                  for(let i=0; i<10; i++) {
                      let angle = Math.atan2(dirY, dirX) + Math.PI + (Math.random()-0.5); 
@@ -762,7 +750,6 @@
                          if(mapLayout[Math.floor(ty)][Math.floor(tx)] === 0) {
                              sint.x = tx + 0.5;
                              sint.y = ty + 0.5;
-                             playAmbientSound('vanish'); 
                              break;
                          }
                      }
@@ -779,21 +766,25 @@
             if (!isBlocking(mapLayout[Math.floor(sint.y + sy * 1.5)][Math.floor(sint.x)])) sint.y += sy;
         }
 
-        sintProximity = Math.max(0, 1 - (dist / 12)); 
+        sintProximity = Math.max(0, 1 - (dist / 14)); 
         
         let dangerAlpha = 0;
-        if (sintProximity > 0.3) dangerAlpha = (sintProximity - 0.3) * 1.5; 
-        if (dangerAlpha > 0.8) dangerAlpha = 0.8;
-        dangerOverlay.style.boxShadow = `inset 0 0 ${dangerAlpha * 100}px #f00`;
+        if (sintProximity > 0.2) dangerAlpha = (sintProximity - 0.2) * 1.2; 
+        if (dangerAlpha > 0.9) dangerAlpha = 0.9;
+        dangerOverlay.style.boxShadow = `inset 0 0 ${dangerAlpha * 150}px #500`;
         
-        // Only modulate opacity if NOT currently glitched by jumpscare
-        if(noiseOverlay.style.opacity < 0.8) {
-             noiseOverlay.style.opacity = 0.08 + (sintProximity * 0.3);
+        let vignetteSize = 25 - (sintProximity * 10);
+        if(keys['shift']) vignetteSize -= 5;
+        if(vignetteSize < 10) vignetteSize = 10;
+        vignetteEl.style.background = `radial-gradient(circle at center, rgba(0,0,0,0) ${vignetteSize}%, rgba(0,0,0,0.8) ${vignetteSize+20}%, black ${vignetteSize+50}%)`;
+
+        if(noiseOverlay.style.opacity < 0.9) {
+             noiseOverlay.style.opacity = 0.1 + (sintProximity * 0.4);
         }
 
-        updateSound(now);
+        updateSound(now, dist);
 
-        if (dist < 0.8) endGame(false); // Hitbox
+        if (dist < 0.7) endGame(false);
         sprites.forEach(s => {
             if (!s.active || s.type !== 'door') return;
             let d = Math.sqrt((posX - s.x)**2 + (posY - s.y)**2);
@@ -801,17 +792,27 @@
         });
     }
 
-    // --- Audio ---
     function initAudio() {
         if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         if(audioCtx.state === 'suspended') audioCtx.resume();
     }
 
-    function updateSound(now) {
+    function updateSound(now, sintDist) {
         if(!audioCtx) return;
+        
         if (now > nextAmbientSoundTime) {
-            playAmbientSound('random');
-            nextAmbientSoundTime = now + 3000 + Math.random() * 5000;
+            playAmbientSound('drone');
+            nextAmbientSoundTime = now + 4000;
+        }
+
+        let beatInterval = 1200; 
+        if (sintDist < 15) beatInterval = 800;
+        if (sintDist < 8) beatInterval = 400;
+        if (sintDist < 4) beatInterval = 250; 
+
+        if (now > nextHeartbeatTime) {
+            playAmbientSound('heartbeat');
+            nextHeartbeatTime = now + beatInterval;
         }
     }
 
@@ -822,213 +823,251 @@
         osc.connect(gain);
         gain.connect(audioCtx.destination);
         
-        if (type === 'rush_scream') {
-            // Rising screech
+        const now = audioCtx.currentTime;
+
+        if (type === 'heartbeat') {
+            osc.frequency.setValueAtTime(60, now);
+            osc.frequency.exponentialRampToValueAtTime(40, now + 0.1);
+            gain.gain.setValueAtTime(0.5 * (sintProximity + 0.2), now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+            osc.start(now);
+            osc.stop(now + 0.2);
+        } else if (type === 'drone') {
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(50, now);
+            osc.frequency.linearRampToValueAtTime(40, now + 4);
+            gain.gain.setValueAtTime(0.05, now);
+            gain.gain.linearRampToValueAtTime(0.05, now + 2);
+            gain.gain.linearRampToValueAtTime(0, now + 4);
+            osc.start(now);
+            osc.stop(now + 4);
+        } else if (type === 'rush_scream') {
             osc.type = 'sawtooth';
-            osc.frequency.setValueAtTime(400, audioCtx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.3);
-            gain.gain.setValueAtTime(0.0, audioCtx.currentTime);
-            gain.gain.linearRampToValueAtTime(0.3, audioCtx.currentTime + 0.1);
-            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.3);
-            osc.start();
-            osc.stop(audioCtx.currentTime + 0.3);
+            osc.frequency.setValueAtTime(200, now);
+            osc.frequency.exponentialRampToValueAtTime(800, now + 0.4);
+            gain.gain.setValueAtTime(0.0, now);
+            gain.gain.linearRampToValueAtTime(0.2, now + 0.1);
+            gain.gain.linearRampToValueAtTime(0, now + 0.4);
+            osc.start(now);
+            osc.stop(now + 0.4);
         } else if (type === 'jumpscare_minor') {
-            // Burst noise
             const bufferSize = audioCtx.sampleRate * 0.2;
             const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
             const data = buffer.getChannelData(0);
             for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
             const noise = audioCtx.createBufferSource();
             noise.buffer = buffer;
-            const noiseGain = audioCtx.createGain();
-            noise.connect(noiseGain);
-            noiseGain.connect(audioCtx.destination);
-            noiseGain.gain.setValueAtTime(0.5, audioCtx.currentTime);
-            noiseGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
-            noise.start();
-        } else if (type === 'vanish') {
-            const bufferSize = audioCtx.sampleRate * 0.5;
-            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-            const data = buffer.getChannelData(0);
-            for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
-            const noise = audioCtx.createBufferSource();
-            noise.buffer = buffer;
-            const noiseGain = audioCtx.createGain();
-            noise.connect(noiseGain);
-            noiseGain.connect(audioCtx.destination);
-            noiseGain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-            noiseGain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
-            noise.start();
-        } else if (Math.random() < 0.3) {
-            osc.type = 'triangle';
-            osc.frequency.setValueAtTime(200, audioCtx.currentTime);
-            osc.frequency.linearRampToValueAtTime(150, audioCtx.currentTime + 1);
-            gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
-            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 1);
-            osc.start();
-            osc.stop(audioCtx.currentTime + 1);
-        } else {
+            const nGain = audioCtx.createGain();
+            noise.connect(nGain);
+            nGain.connect(audioCtx.destination);
+            nGain.gain.setValueAtTime(0.4, now);
+            nGain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+            noise.start(now);
+        } else if (type === 'scream_end') {
             osc.type = 'sawtooth';
-            osc.frequency.setValueAtTime(50, audioCtx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(10, audioCtx.currentTime + 1);
-            gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
-            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 1);
-            osc.start();
-            osc.stop(audioCtx.currentTime + 1);
+            osc.frequency.setValueAtTime(800, now);
+            osc.frequency.exponentialRampToValueAtTime(100, now + 1.5);
+            gain.gain.setValueAtTime(0.5, now);
+            gain.gain.linearRampToValueAtTime(0, now + 1.5);
+            osc.start(now);
+            osc.stop(now + 1.5);
         }
     }
 
-    function playScream() {
-        if(!audioCtx) return;
-        const bufferSize = audioCtx.sampleRate * 1.0;
-        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-        const data = buffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
-        const noise = audioCtx.createBufferSource();
-        noise.buffer = buffer;
-        const gain = audioCtx.createGain();
-        const filter = audioCtx.createBiquadFilter();
-        filter.type = 'highpass';
-        filter.frequency.value = 1000;
-        noise.connect(filter);
-        filter.connect(gain);
-        gain.connect(audioCtx.destination);
-        gain.gain.setValueAtTime(0.8, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1.0);
-        noise.start();
-    }
-
-    // --- Render ---
     function draw() {
         ctx.fillStyle = '#050505'; ctx.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT / 2);
-        ctx.fillStyle = '#111'; ctx.fillRect(0, SCREEN_HEIGHT / 2, SCREEN_WIDTH, SCREEN_HEIGHT / 2);
+        ctx.fillStyle = '#101010'; ctx.fillRect(0, SCREEN_HEIGHT / 2, SCREEN_WIDTH, SCREEN_HEIGHT / 2);
 
-        let breathe = Math.sin(frameCount * 0.05) * 0.05;
-        zBuffer = []; 
+        let shakeX = 0, shakeY = 0;
+        if(sintProximity > 0.5) {
+            shakeX = (Math.random()-0.5) * (sintProximity * 10);
+            shakeY = (Math.random()-0.5) * (sintProximity * 10);
+        }
+        
+        ctx.save();
+        ctx.translate(shakeX, shakeY);
 
-        for (let x = 0; x < SCREEN_WIDTH; x++) {
-            let cameraX = 2 * x / SCREEN_WIDTH - 1;
-            let rayDirX = dirX + planeX * cameraX;
-            let rayDirY = dirY + planeY * cameraX;
+        try {
+            let breathe = Math.sin(frameCount * 0.05) * 0.05;
+            zBuffer = []; 
 
-            let mapX = Math.floor(posX);
-            let mapY = Math.floor(posY);
-            let sideDistX, sideDistY, perpWallDist;
-            let stepX, stepY, side, wallType = 1;
-            let deltaDistX = Math.abs(1 / rayDirX);
-            let deltaDistY = Math.abs(1 / rayDirY);
-            let hit = 0;
+            for (let x = 0; x < SCREEN_WIDTH; x++) {
+                let cameraX = 2 * x / SCREEN_WIDTH - 1;
+                let rayDirX = dirX + planeX * cameraX;
+                let rayDirY = dirY + planeY * cameraX;
 
-            if (rayDirX < 0) { stepX = -1; sideDistX = (posX - mapX) * deltaDistX; }
-            else { stepX = 1; sideDistX = (mapX + 1.0 - posX) * deltaDistX; }
-            if (rayDirY < 0) { stepY = -1; sideDistY = (posY - mapY) * deltaDistY; }
-            else { stepY = 1; sideDistY = (mapY + 1.0 - posY) * deltaDistY; }
+                let mapX = Math.floor(posX);
+                let mapY = Math.floor(posY);
+                let sideDistX, sideDistY, perpWallDist;
+                let stepX, stepY, side, wallType = 1;
+                let deltaDistX = Math.abs(1 / rayDirX);
+                let deltaDistY = Math.abs(1 / rayDirY);
+                let hit = 0;
 
-            while (hit === 0) {
-                if (sideDistX < sideDistY) { sideDistX += deltaDistX; mapX += stepX; side = 0; }
-                else { sideDistY += deltaDistY; mapY += stepY; side = 1; }
-                let tile = mapLayout[mapY][mapX];
-                if (tile === 1 || (tile >= 5 && tile <= 9)) { hit = 1; wallType = tile; }
+                if (rayDirX < 0) { stepX = -1; sideDistX = (posX - mapX) * deltaDistX; }
+                else { stepX = 1; sideDistX = (mapX + 1.0 - posX) * deltaDistX; }
+                if (rayDirY < 0) { stepY = -1; sideDistY = (posY - mapY) * deltaDistY; }
+                else { stepY = 1; sideDistY = (mapY + 1.0 - posY) * deltaDistY; }
+
+                let loopGuard = 0;
+                while (hit === 0 && loopGuard < 100) {
+                    loopGuard++;
+                    if (sideDistX < sideDistY) { sideDistX += deltaDistX; mapX += stepX; side = 0; }
+                    else { sideDistY += deltaDistY; mapY += stepY; side = 1; }
+                    
+                    if(mapX < 0 || mapX >= MAP_WIDTH || mapY < 0 || mapY >= MAP_HEIGHT) {
+                        hit = 1; wallType = 1; 
+                    } else {
+                        let tile = mapLayout[mapY][mapX];
+                        if (tile !== 0) { hit = 1; wallType = tile; }
+                    }
+                }
+
+                if (side === 0) perpWallDist = (mapX - posX + (1 - stepX) / 2) / rayDirX;
+                else            perpWallDist = (mapY - posY + (1 - stepY) / 2) / rayDirY;
+
+                zBuffer[x] = perpWallDist; 
+
+                let lineHeight = Math.floor(SCREEN_HEIGHT / perpWallDist);
+                lineHeight *= (1 + breathe * (perpWallDist < 5 ? 1 : 0));
+                
+                let drawStart = -lineHeight / 2 + SCREEN_HEIGHT / 2;
+                let drawEnd = lineHeight / 2 + SCREEN_HEIGHT / 2;
+
+                let wallX; 
+                if (side == 0) wallX = posY + perpWallDist * rayDirY;
+                else           wallX = posX + perpWallDist * rayDirX;
+                wallX -= Math.floor(wallX);
+                let texX = Math.floor(wallX * texWidth);
+                if(side == 0 && rayDirX > 0) texX = texWidth - texX - 1;
+                if(side == 1 && rayDirY < 0) texX = texWidth - texX - 1;
+
+                let tex = textures.wall;
+                if(wallType === 5) tex = textures.wall_bloody;
+
+                // Deterministic random for wall decorations
+                // Only a tiny fraction of walls get arrows
+                let wallRandom = Math.abs(Math.sin(mapX * 12.9898 + mapY * 78.233) * 43758.5453) % 1;
+
+                if(wallRandom < 0.0015) { // 0.15% chance
+                    let adjX = mapX, adjY = mapY;
+                    if(side === 0) adjX -= stepX;
+                    else adjY -= stepY;
+
+                    if(adjX > 0 && adjX < MAP_WIDTH-1 && adjY > 0 && adjY < MAP_HEIGHT-1) {
+                        if(distMap && distMap[adjY] && distMap[adjY][adjX] !== undefined) {
+                             let arrowDir = null;
+                             if(side === 0) {
+                                let nDist = distMap[adjY-1] ? distMap[adjY-1][adjX] : 999;
+                                let sDist = distMap[adjY+1] ? distMap[adjY+1][adjX] : 999;
+                                if(mapLayout[adjY-1][adjX] === 0 && mapLayout[adjY+1][adjX] === 0) {
+                                    if(nDist < sDist) arrowDir = (stepX < 0) ? 'right' : 'left';
+                                    else if (sDist < nDist) arrowDir = (stepX < 0) ? 'left' : 'right';
+                                }
+                             } else {
+                                 let wDist = distMap[adjY][adjX-1];
+                                 let eDist = distMap[adjY][adjX+1];
+                                 if(mapLayout[adjY][adjX-1] === 0 && mapLayout[adjY][adjX+1] === 0) {
+                                     if(wDist < eDist) arrowDir = (stepY < 0) ? 'left' : 'right';
+                                     else if (eDist < wDist) arrowDir = (stepY < 0) ? 'right' : 'left';
+                                 }
+                             }
+                             if(arrowDir === 'left') tex = textures.arrow_left;
+                             if(arrowDir === 'right') tex = textures.arrow_right;
+                        }
+                    }
+                }
+
+                ctx.drawImage(tex, texX, 0, 1, texHeight, x, drawStart, 1, drawEnd - drawStart);
+                
+                let lightIntensity = 1.0 / (perpWallDist * 0.4); 
+                if (lightIntensity > 1) lightIntensity = 1;
+                
+                let beamWidth = SCREEN_WIDTH / 1.5; // Wider beam
+                if(sintProximity > 0.3) beamWidth = SCREEN_WIDTH / 2.5;
+
+                let screenDist = Math.abs(x - SCREEN_WIDTH / 2) / (beamWidth);
+                let beam = 1.0 - Math.pow(screenDist, 3); 
+                if(beam < 0) beam = 0;
+                
+                lightIntensity *= beam;
+                // Add base ambient light so nothing is pure black
+                lightIntensity += 0.05; 
+                
+                if(perpWallDist > 7) lightIntensity *= 0.3; 
+                if(side === 1) lightIntensity *= 0.6; 
+
+                let alpha = 1 - lightIntensity;
+                if(alpha < 0) alpha = 0; if(alpha > 1) alpha = 1;
+
+                ctx.fillStyle = `rgba(0,0,0,${alpha})`;
+                ctx.fillRect(x, drawStart, 1, drawEnd - drawStart);
             }
 
-            if (side === 0) perpWallDist = (mapX - posX + (1 - stepX) / 2) / rayDirX;
-            else            perpWallDist = (mapY - posY + (1 - stepY) / 2) / rayDirY;
+            sprites.forEach(s => {
+                s.dist = ((posX - s.x) ** 2 + (posY - s.y) ** 2);
+            });
+            sprites.sort((a, b) => b.dist - a.dist);
 
-            zBuffer[x] = perpWallDist; 
+            for (let i = 0; i < sprites.length; i++) {
+                if(!sprites[i].active) continue;
+                let sprite = sprites[i];
+                let spriteX = sprite.x - posX;
+                let spriteY = sprite.y - posY;
 
-            let lineHeight = Math.floor(SCREEN_HEIGHT / perpWallDist);
-            lineHeight *= (1 + breathe * (perpWallDist < 5 ? 1 : 0));
-            
-            let drawStart = -lineHeight / 2 + SCREEN_HEIGHT / 2;
-            let drawEnd = lineHeight / 2 + SCREEN_HEIGHT / 2;
-
-            let wallX; 
-            if (side == 0) wallX = posY + perpWallDist * rayDirY;
-            else           wallX = posX + perpWallDist * rayDirX;
-            wallX -= Math.floor(wallX);
-            let texX = Math.floor(wallX * texWidth);
-            if(side == 0 && rayDirX > 0) texX = texWidth - texX - 1;
-            if(side == 1 && rayDirY < 0) texX = texWidth - texX - 1;
-
-            let tex = textures.wall;
-            if(wallType === 5) tex = textures.wall_bloody_1;
-            if(wallType === 8) tex = textures.wall_arrow_left;
-            if(wallType === 9) tex = textures.wall_arrow_right;
-
-            ctx.drawImage(tex, texX, 0, 1, texHeight, x, drawStart, 1, drawEnd - drawStart);
-            
-            let lightIntensity = 1.0 / (perpWallDist * 0.3); 
-            if (lightIntensity > 1) lightIntensity = 1;
-            let screenDist = Math.abs(x - SCREEN_WIDTH / 2) / (SCREEN_WIDTH / 2);
-            let beam = 1.0 - Math.pow(screenDist, 2); 
-            lightIntensity *= beam;
-            if(perpWallDist > 8) lightIntensity *= 0.5;
-            if (side === 1) lightIntensity *= 0.7;
-
-            ctx.fillStyle = `rgba(0,0,0,${1 - lightIntensity})`;
-            ctx.fillRect(x, drawStart, 1, drawEnd - drawStart);
-        }
-
-        sprites.forEach(s => {
-            s.dist = ((posX - s.x) ** 2 + (posY - s.y) ** 2);
-        });
-        sprites.sort((a, b) => b.dist - a.dist);
-
-        for (let i = 0; i < sprites.length; i++) {
-            if(!sprites[i].active) continue;
-            let sprite = sprites[i];
-            let spriteX = sprite.x - posX;
-            let spriteY = sprite.y - posY;
-
-            let invDet = 1.0 / (planeX * dirY - dirX * planeY);
-            let transformX = invDet * (dirY * spriteX - dirX * spriteY);
-            let transformY = invDet * (-planeY * spriteX + planeX * spriteY); 
-            let spriteScreenX = Math.floor((SCREEN_WIDTH / 2) * (1 + transformX / transformY));
-            let spriteHeight = Math.abs(Math.floor(SCREEN_HEIGHT / transformY));
-            
-            let animOffset = 0;
-            if (sprite.type === 'piet') animOffset = Math.sin(frameCount * 0.05) * 10;
-            if (sprite.type === 'paper') animOffset = Math.sin(frameCount * 0.1) * 5 + 60; 
-
-            let drawStartY = -spriteHeight / 2 + SCREEN_HEIGHT / 2 + animOffset / transformY;
-            let drawEndY = spriteHeight / 2 + SCREEN_HEIGHT / 2 + animOffset / transformY;
-            let spriteWidth = Math.abs(Math.floor(SCREEN_HEIGHT / transformY));
-            let drawStartX = -spriteWidth / 2 + spriteScreenX;
-            let drawEndX = spriteWidth / 2 + spriteScreenX;
-
-            let tex;
-            if (sprite.type === 'door') tex = textures.door;
-            else if (sprite.type === 'sint') tex = textures.sint;
-            else if (sprite.type === 'piet') tex = textures.piet;
-            else if (sprite.type === 'paper') tex = textures.paper;
-
-            if (sprite.type === 'piet') ctx.globalAlpha = 0.9;
-            else ctx.globalAlpha = 1.0;
-
-            for (let stripe = Math.floor(drawStartX); stripe < Math.floor(drawEndX); stripe++) {
-                let texX = Math.floor(256 * (stripe - (-spriteWidth / 2 + spriteScreenX)) * 64 / spriteWidth) / 256;
-                let realTexX = Math.floor((stripe - (-spriteWidth / 2 + spriteScreenX)) * 128 / spriteWidth);
+                let invDet = 1.0 / (planeX * dirY - dirX * planeY);
+                let transformX = invDet * (dirY * spriteX - dirX * spriteY);
+                let transformY = invDet * (-planeY * spriteX + planeX * spriteY); 
+                let spriteScreenX = Math.floor((SCREEN_WIDTH / 2) * (1 + transformX / transformY));
+                let spriteHeight = Math.abs(Math.floor(SCREEN_HEIGHT / transformY));
                 
-                if (transformY > 0 && stripe > 0 && stripe < SCREEN_WIDTH && transformY < zBuffer[stripe]) {
-                    ctx.drawImage(tex, realTexX, 0, 1, 128, stripe, drawStartY, 1, drawEndY - drawStartY);
+                let animOffset = 0;
+                if (sprite.type === 'piet') animOffset = Math.sin(frameCount * 0.05) * 5;
+                if (sprite.type === 'paper') animOffset = Math.sin(frameCount * 0.1) * 3 + 60; 
+
+                let drawStartY = -spriteHeight / 2 + SCREEN_HEIGHT / 2 + animOffset / transformY;
+                let drawEndY = spriteHeight / 2 + SCREEN_HEIGHT / 2 + animOffset / transformY;
+                let spriteWidth = Math.abs(Math.floor(SCREEN_HEIGHT / transformY));
+                let drawStartX = -spriteWidth / 2 + spriteScreenX;
+                let drawEndX = spriteWidth / 2 + spriteScreenX;
+
+                let tex;
+                if (sprite.type === 'door') tex = textures.door;
+                else if (sprite.type === 'sint') tex = textures.sint;
+                else if (sprite.type === 'piet') tex = textures.piet;
+                else if (sprite.type === 'paper') tex = textures.paper;
+
+                for (let stripe = Math.floor(drawStartX); stripe < Math.floor(drawEndX); stripe++) {
+                    let texX = Math.floor(256 * (stripe - (-spriteWidth / 2 + spriteScreenX)) * 64 / spriteWidth) / 256;
+                    let realTexX = Math.floor((stripe - (-spriteWidth / 2 + spriteScreenX)) * 128 / spriteWidth);
                     
-                    let lightIntensity = 1.0 / (transformY * 0.3); 
-                    if (lightIntensity > 1) lightIntensity = 1;
-                    
-                    let screenDist = Math.abs(stripe - SCREEN_WIDTH / 2) / (SCREEN_WIDTH / 2);
-                    let beam = 1.0 - Math.pow(screenDist, 2);
-                    lightIntensity *= beam;
-                    
-                    if (sprite.type !== 'paper') { 
-                        ctx.fillStyle = `rgba(0,0,0,${1 - lightIntensity})`;
-                        ctx.fillRect(stripe, drawStartY, 1, drawEndY - drawStartY);
+                    if (transformY > 0 && stripe > 0 && stripe < SCREEN_WIDTH && transformY < zBuffer[stripe]) {
+                        ctx.drawImage(tex, realTexX, 0, 1, 128, stripe, drawStartY, 1, drawEndY - drawStartY);
+                        
+                        let lightIntensity = 1.0 / (transformY * 0.4); 
+                        if (lightIntensity > 1) lightIntensity = 1;
+                        let screenDist = Math.abs(stripe - SCREEN_WIDTH / 2) / (SCREEN_WIDTH/2);
+                        lightIntensity *= (1.0 - Math.pow(screenDist, 3));
+                        
+                        // Add base ambient light
+                        lightIntensity += 0.05;
+
+                        if (sprite.type !== 'paper') { 
+                            let alpha = 1 - lightIntensity;
+                            if(alpha < 0) alpha = 0; if(alpha > 1) alpha = 1;
+                            ctx.fillStyle = `rgba(0,0,0,${alpha})`;
+                            ctx.fillRect(stripe, drawStartY, 1, drawEndY - drawStartY);
+                        }
                     }
                 }
             }
-            ctx.globalAlpha = 1.0;
+        } catch(e) {
+            console.error("Draw Error:", e);
         }
-    }
 
+        ctx.restore();
+    }
+    
     function gameLoop() {
         if(!gameRunning) return;
         updateGame();
@@ -1039,7 +1078,7 @@
     function endGame(win) {
         gameRunning = false;
         if(!win) {
-            playScream();
+            playAmbientSound('scream_end');
             jumpscareOverlay.style.opacity = 1;
             let flashCount = 0;
             let flashInt = setInterval(() => {
@@ -1058,7 +1097,7 @@
         let title = win ? "ONTSNAPT" : "DOOD";
         msgOverlay.querySelector('h1').innerText = title;
         msgOverlay.querySelector('h1').style.color = win ? "#4a4" : "#900";
-        msgOverlay.querySelector('p').innerText = win ? "Je bent vrij." : "Geen genade.";
+        msgOverlay.querySelector('p').innerText = win ? "De nachtmerrie is voorbij." : "Je ziel is nu van hem.";
         msgOverlay.querySelectorAll('p')[1].innerText = "";
         startBtn.innerText = "OPNIEUW";
         msgOverlay.classList.remove('hidden');
