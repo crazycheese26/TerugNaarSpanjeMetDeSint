@@ -165,14 +165,27 @@
 
         .hidden { display: none !important; }
 
-        /* Flashlight Vignette - darker edges, clear center */
+        /* Flashlight Vignette */
         #vignette {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
+            /* Will be updated via JS for proximity effect */
             background: radial-gradient(circle at center, rgba(0,0,0,0) 20%, rgba(0,0,0,0.5) 40%, rgba(0,0,0,0.95) 70%, black 100%);
             pointer-events: none;
             z-index: 55;
             mix-blend-mode: multiply;
+            transition: box-shadow 0.2s;
+        }
+
+        /* Danger Overlay (Blood edges) */
+        #danger-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            box-shadow: inset 0 0 0px #f00;
+            pointer-events: none;
+            z-index: 56;
+            mix-blend-mode: overlay;
+            transition: box-shadow 0.2s;
         }
     </style>
 </head>
@@ -183,6 +196,7 @@
     <div class="scanlines"></div>
     <div class="noise"></div>
     <div id="vignette"></div>
+    <div id="danger-overlay"></div>
     <div id="jumpscare-overlay"></div>
     
     <div id="ui-layer">
@@ -195,16 +209,16 @@
 
     <div id="message-overlay">
         <h1>VERLOREN ZIELEN</h1>
-        <p>Je hebt alleen een zaklamp. De batterij is oneindig, je moed niet.</p>
-        <p>Hij is hongerig. En hij is niet alleen.</p>
+        <p>Je hebt alleen een zaklamp.</p>
+        <p>Volg de bloedsporen op de muren, ze wijzen de weg.</p>
         <button id="start-btn">BETREDEN</button>
     </div>
 </div>
 
 <script>
     // --- Configuration ---
-    const MAP_WIDTH = 45;
-    const MAP_HEIGHT = 35;
+    const MAP_WIDTH = 60; // Bigger map
+    const MAP_HEIGHT = 50;
     const SCREEN_WIDTH = 320; 
     const SCREEN_HEIGHT = 180;
     
@@ -223,6 +237,8 @@
     const jumpscareOverlay = document.getElementById('jumpscare-overlay');
     const startBtn = document.getElementById('start-btn');
     const loreTextEl = document.getElementById('lore-text');
+    const dangerOverlay = document.getElementById('danger-overlay');
+    const noiseOverlay = document.querySelector('.noise');
 
     let gameRunning = false;
     let keys = {};
@@ -247,16 +263,14 @@
     
     // Lore Database
     const loreMessages = [
-        "Dag 4. Het is hier zo koud. De Pieten praten niet, ze staren alleen.",
-        "Hij is geen heiligman. Ik zag hem iets eten... het was geen marsepein.",
-        "De deur verandert van plek. Het doolhof leeft.",
+        "Het bloed op de muren... het wijst naar de uitgang.",
+        "Hij eet geen kinderen. Hij eet hun dromen.",
+        "Ik zag hem door de muur lopen. Dit is geen normaal gebouw.",
         "Kijk hem niet in de ogen. Hij ruikt je angst.",
-        "5 December is geen feestdag. Het is een offerdag.",
-        "Ik hoor de bellen... ze komen dichterbij.",
+        "5 December is de dag van het oordeel.",
+        "Volg de pijlen als je wilt leven.",
         "Er is geen weg terug naar Spanje. Dit is de hel."
     ];
-
-    const wallMessages = ["HIJ ZIET JE", "REN", "GEEN UITGANG", "DOOD", "5 DEC", "†"];
 
     // Textures
     const texWidth = 64;
@@ -289,14 +303,24 @@
                 if (type === 'wall_bloody') {
                     cx.fillStyle = '#600'; 
                     cx.font = 'bold 16px Courier';
-                    cx.save();
-                    cx.translate(32, 32);
-                    cx.rotate((Math.random()-0.5)*0.5);
-                    let msg = wallMessages[variant % wallMessages.length];
-                    cx.fillText(msg, -20, 5);
-                    cx.fillRect(-10, 10, 2, 20);
-                    cx.fillRect(10, 10, 3, 15);
-                    cx.restore();
+                    
+                    // Specific Arrow variants for navigation
+                    if (variant === 'arrow_left') {
+                        cx.beginPath(); cx.moveTo(50, 32); cx.lineTo(20, 32); cx.lineTo(30, 20); cx.moveTo(20, 32); cx.lineTo(30, 44);
+                        cx.lineWidth = 4; cx.strokeStyle = '#800'; cx.stroke();
+                    } else if (variant === 'arrow_right') {
+                         cx.beginPath(); cx.moveTo(14, 32); cx.lineTo(44, 32); cx.lineTo(34, 20); cx.moveTo(44, 32); cx.lineTo(34, 44);
+                        cx.lineWidth = 4; cx.strokeStyle = '#800'; cx.stroke();
+                    } else {
+                         // Random scary text
+                         cx.save();
+                         cx.translate(32, 32);
+                         cx.rotate((Math.random()-0.5)*0.5);
+                         cx.fillStyle = '#600';
+                         cx.fillText("†", -5, 5);
+                         cx.fillRect(-10, 10, 2, 20);
+                         cx.restore();
+                    }
                 }
             } 
             return c;
@@ -341,18 +365,12 @@
                 cx.fillStyle = '#fff';
                 cx.beginPath(); cx.moveTo(52, 35); cx.lineTo(64, 60); cx.lineTo(76, 35); cx.fill();
             } else if (type === 'piet') {
-                // Made body slightly lighter so they are visible in flashlight beam
                 cx.fillStyle = '#111'; 
                 cx.beginPath(); cx.ellipse(64, 80, 20, 40, 0, 0, Math.PI*2); cx.fill();
                 cx.beginPath(); cx.arc(64, 40, 18, 0, Math.PI*2); cx.fill();
-                
-                // Outline to help visibility
                 cx.strokeStyle = '#222'; cx.lineWidth = 1; cx.stroke();
-
                 cx.strokeStyle = '#505'; cx.lineWidth=3; 
                 cx.beginPath(); cx.moveTo(64, 25); cx.lineTo(90, 10); cx.stroke();
-                
-                // Bright glowing eyes
                 cx.fillStyle = '#fff';
                 cx.shadowBlur = 10; cx.shadowColor = '#fff';
                 cx.beginPath(); cx.arc(58, 40, 3, 0, Math.PI*2); cx.fill();
@@ -387,9 +405,13 @@
         }
 
         textures.wall = createTexture('#444', '#333', 'wall', 0); 
-        textures.wall_bloody_1 = createTexture('#444', '#333', 'wall_bloody', 0);
-        textures.wall_bloody_2 = createTexture('#444', '#333', 'wall_bloody', 1);
-        textures.wall_bloody_3 = createTexture('#444', '#333', 'wall_bloody', 2);
+        // 5, 6, 7 reserved for blood
+        textures.wall_bloody_1 = createTexture('#444', '#333', 'wall_bloody', 'random');
+        
+        // 8 = Arrow Left, 9 = Arrow Right
+        textures.wall_arrow_left = createTexture('#444', '#333', 'wall_bloody', 'arrow_left');
+        textures.wall_arrow_right = createTexture('#444', '#333', 'wall_bloody', 'arrow_right');
+        
         textures.door = createSprite('door');
         textures.paper = createSprite('paper');
         textures.sint = createSprite('sint');
@@ -417,6 +439,7 @@
         map[startY][startX] = 0;
         stack.push({x: startX, y: startY});
         
+        // Recursive Backtracker
         while(stack.length > 0) {
             let current = stack[stack.length - 1];
             let neighbors = [];
@@ -436,41 +459,141 @@
             } else stack.pop();
         }
         
-        for(let i=0; i<30; i++) {
+        // Add random loops (holes)
+        for(let i=0; i<40; i++) {
             let rx = Math.floor(Math.random()*(MAP_WIDTH-2))+1;
             let ry = Math.floor(Math.random()*(MAP_HEIGHT-2))+1;
             if(map[ry][rx]===1) {
+                // Check if it connects two corridors
                 if((map[ry-1][rx]===0 && map[ry+1][rx]===0) || (map[ry][rx-1]===0 && map[ry][rx+1]===0)) map[ry][rx]=0;
             }
         }
 
+        // --- POIs: Big Rooms ---
+        for(let i=0; i<5; i++) {
+             let rx = Math.floor(Math.random()*(MAP_WIDTH-6))+2;
+             let ry = Math.floor(Math.random()*(MAP_HEIGHT-6))+2;
+             // Clear a 3x3 or 4x4 area
+             let size = Math.floor(Math.random()*2) + 3;
+             for(let cy=0; cy<size; cy++) {
+                 for(let cx=0; cx<size; cx++) {
+                     if(ry+cy < MAP_HEIGHT-1 && rx+cx < MAP_WIDTH-1) {
+                         map[ry+cy][rx+cx] = 0;
+                     }
+                 }
+             }
+        }
+
         posX = 1.5; posY = 1.5;
 
-        // Place Lore Papers
+        // Place Exit Far Away
+        let placedExit = false;
+        let doorX = 0, doorY = 0;
+        
+        // Find furthest point for door simply by random try with distance check
+        let attempts = 0;
+        while(!placedExit && attempts < 1000) {
+            attempts++;
+            let rx = Math.floor(Math.random() * MAP_WIDTH);
+            let ry = Math.floor(Math.random() * MAP_HEIGHT);
+            if(map[ry][rx] === 0 && Math.hypot(rx - posX, ry - posY) > 40) {
+                sprites.push({ x: rx+0.5, y: ry+0.5, type: 'door', active: true });
+                placedExit = true;
+                doorX = rx; doorY = ry;
+            }
+        }
+        // Fallback if map too small/dense
+        if(!placedExit) {
+             doorX = MAP_WIDTH-2; doorY = MAP_HEIGHT-2;
+             map[doorY][doorX] = 0;
+             sprites.push({ x: doorX+0.5, y: doorY+0.5, type: 'door', active: true });
+        }
+
+        // --- Navigation Hints (Breadth-First Search) ---
+        // Flood fill from Door to generate directions
+        let distMap = [];
+        for(let y=0; y<MAP_HEIGHT; y++) {
+            let row = [];
+            for(let x=0; x<MAP_WIDTH; x++) row.push(-1);
+            distMap.push(row);
+        }
+        
+        let q = [{x: doorX, y: doorY, dist: 0}];
+        distMap[doorY][doorX] = 0;
+        
+        while(q.length > 0) {
+            let curr = q.shift();
+            let dirs = [{x:0,y:-1}, {x:0,y:1}, {x:-1,y:0}, {x:1,y:0}];
+            for(let d of dirs) {
+                let nx = curr.x + d.x;
+                let ny = curr.y + d.y;
+                if(nx >= 0 && nx < MAP_WIDTH && ny >= 0 && ny < MAP_HEIGHT) {
+                    if(map[ny][nx] === 0 && distMap[ny][nx] === -1) {
+                        distMap[ny][nx] = curr.dist + 1;
+                        q.push({x: nx, y: ny, dist: curr.dist + 1});
+                    }
+                }
+            }
+        }
+
+        // Place Arrows on walls based on distMap
+        // Logic: Iterate over walls. If a wall is next to a path, check path direction.
+        // Simplified: Iterate over floor tiles. If distance > 10, occasionaly check neighbors.
+        for(let y=1; y<MAP_HEIGHT-1; y++) {
+            for(let x=1; x<MAP_WIDTH-1; x++) {
+                if(map[y][x] === 0 && distMap[y][x] > 5 && Math.random() < 0.15) {
+                    // This is a floor tile. Look for neighbor with lower distance.
+                    let currentDist = distMap[y][x];
+                    let bestDir = null;
+                    
+                    if (distMap[y-1][x] !== -1 && distMap[y-1][x] < currentDist) bestDir = 'N';
+                    else if (distMap[y+1][x] !== -1 && distMap[y+1][x] < currentDist) bestDir = 'S';
+                    else if (distMap[y][x-1] !== -1 && distMap[y][x-1] < currentDist) bestDir = 'W';
+                    else if (distMap[y][x+1] !== -1 && distMap[y][x+1] < currentDist) bestDir = 'E';
+                    
+                    if(bestDir) {
+                        // Place arrow on OPPOSITE wall so player sees it when looking that way?
+                        // Or place on side wall pointing?
+                        // Let's place on side walls.
+                        
+                        // If path is West (bestDir = W), place arrow on North wall pointing Left?
+                        // Keep it simple: Paint walls.
+                        if (bestDir === 'W') {
+                             // Path is to the left. If there is a wall Above(N) or Below(S), paint it.
+                             if(map[y-1][x]===1) map[y-1][x] = 8; // Left Arrow
+                             else if(map[y+1][x]===1) map[y+1][x] = 8;
+                        } else if (bestDir === 'E') {
+                             if(map[y-1][x]===1) map[y-1][x] = 9; // Right Arrow
+                             else if(map[y+1][x]===1) map[y+1][x] = 9;
+                        } else if (bestDir === 'N') {
+                             // Path is Up. If wall to right, paint Left Arrow? Rotations are hard.
+                             // Let's just use 8 and 9 for L/R relative to wall.
+                             // Actually, if map[y][x+1] is wall, and path is North, we want arrow pointing "Left" relative to player facing wall?
+                             // Just stick to walls that are perpendicular.
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Random Blood splatter
+        for(let i=0; i<30; i++) {
+             let rx = Math.floor(Math.random() * (MAP_WIDTH-2))+1;
+             let ry = Math.floor(Math.random() * (MAP_HEIGHT-2))+1;
+             if(map[ry][rx] === 1) map[ry][rx] = 5;
+        }
+
+        // Lore Papers
         for(let i=0; i<10; i++) {
             let rx = Math.floor(Math.random() * MAP_WIDTH);
             let ry = Math.floor(Math.random() * MAP_HEIGHT);
             if(map[ry][rx] === 0) {
                 let msg = loreMessages[Math.floor(Math.random() * loreMessages.length)];
                 sprites.push({ x: rx+0.5, y: ry+0.5, type: 'paper', active: true, msg: msg });
-                if(map[ry][rx-1]===1) map[ry][rx-1] = 5 + Math.floor(Math.random()*3);
             }
         }
 
-        // Place Exit
-        let placedExit = false;
-        while(!placedExit) {
-            let rx = Math.floor(Math.random() * MAP_WIDTH);
-            let ry = Math.floor(Math.random() * MAP_HEIGHT);
-            if(map[ry][rx] === 0 && Math.hypot(rx - posX, ry - posY) > 25) {
-                sprites.push({ x: rx+0.5, y: ry+0.5, type: 'door', active: true });
-                placedExit = true;
-                if(map[ry][rx-1]===1) map[ry][rx-1]=5;
-                else if(map[ry][rx+1]===1) map[ry][rx+1]=5;
-            }
-        }
-
-        // Place Sint
+        // Sint
         let placedSint = false;
         while(!placedSint) {
             let rx = Math.floor(Math.random() * MAP_WIDTH);
@@ -533,7 +656,7 @@
         }
 
         let currentSpeed = keys['shift'] ? RUN_SPEED : MOVE_SPEED;
-        function isBlocking(val) { return val === 1 || (val >= 5 && val <= 7); }
+        function isBlocking(val) { return val === 1 || (val >= 5 && val <= 9); } // Block arrow walls too
 
         if (keys['w'] || keys['arrowup']) {
             if(!isBlocking(mapLayout[Math.floor(posY)][Math.floor(posX + dirX * currentSpeed * 2)])) posX += dirX * currentSpeed;
@@ -555,20 +678,14 @@
         if(nearbyPaper) { loreTextEl.innerText = nearbyPaper; loreTextEl.style.opacity = 1; } 
         else { loreTextEl.style.opacity = 0; }
 
-        // --- Improved Looker (Piet) Logic ---
-        // Check more often (every 0.5s)
+        // Hallucinations
         if (now - lastHallucinationCheck > 500) { 
             lastHallucinationCheck = now;
-            // Higher chance (60%) if not maxed out
             if (hallucinations.length < 5 && Math.random() < 0.6) {
-                // Spawn closer (3-8 units)
                 let spawnDist = 3 + Math.random() * 5;
-                // Add noise to angle so they aren't always dead center
                 let angle = Math.atan2(dirY, dirX) + (Math.random() - 0.5) * 1.5;
                 let hX = posX + Math.cos(angle) * spawnDist;
                 let hY = posY + Math.sin(angle) * spawnDist;
-                
-                // Bounds Check
                 if (hX > 1 && hX < MAP_WIDTH-1 && hY > 1 && hY < MAP_HEIGHT-1) {
                     if (mapLayout[Math.floor(hY)][Math.floor(hX)] === 0) {
                         let piet = { x: hX, y: hY, type: 'piet', active: true, spawnTime: now };
@@ -582,7 +699,6 @@
         for(let i = hallucinations.length - 1; i >= 0; i--) {
             let p = hallucinations[i];
             let distToPiet = Math.hypot(posX - p.x, posY - p.y);
-            // Must get very close to vanish (2.5 units) or time out
             if (distToPiet < 2.5 || (now - p.spawnTime > 5000)) {
                 p.active = false; 
                 hallucinations.splice(i, 1);
@@ -592,7 +708,7 @@
             }
         }
 
-        // Sint
+        // Sint Logic
         let timeAlive = (now - startTime) / 1000;
         let sintSpeed = 0.045 + (timeAlive * 0.0006);
         if(sintSpeed > 0.11) sintSpeed = 0.11;
@@ -601,10 +717,9 @@
         let dy = posY - sint.y;
         let dist = Math.sqrt(dx*dx + dy*dy);
         
-        // Teleport
         if (frameCount % 120 === 0) {
             let stuck = Math.hypot(sint.x - sint.lastX, sint.y - sint.lastY) < 0.1;
-            let tooFar = dist > 25; 
+            let tooFar = dist > 30; // Increased spawn dist threshold for bigger map
             if (stuck || tooFar) {
                  for(let i=0; i<10; i++) {
                      let angle = Math.atan2(dirY, dirX) + Math.PI + (Math.random()-0.5); 
@@ -633,6 +748,17 @@
         }
 
         sintProximity = Math.max(0, 1 - (dist / 12)); 
+        
+        // --- VISUAL HINTS UPDATE ---
+        // Red overlay intensity
+        let dangerAlpha = 0;
+        if (sintProximity > 0.3) dangerAlpha = (sintProximity - 0.3) * 1.5; 
+        if (dangerAlpha > 0.8) dangerAlpha = 0.8;
+        dangerOverlay.style.boxShadow = `inset 0 0 ${dangerAlpha * 100}px #f00`;
+        
+        // Static noise intensity
+        noiseOverlay.style.opacity = 0.08 + (sintProximity * 0.3); // Scale noise with danger
+
         updateSound(now);
 
         if (dist < 0.4) endGame(false);
@@ -746,7 +872,7 @@
                 if (sideDistX < sideDistY) { sideDistX += deltaDistX; mapX += stepX; side = 0; }
                 else { sideDistY += deltaDistY; mapY += stepY; side = 1; }
                 let tile = mapLayout[mapY][mapX];
-                if (tile === 1 || (tile >= 5 && tile <= 7)) { hit = 1; wallType = tile; }
+                if (tile === 1 || (tile >= 5 && tile <= 9)) { hit = 1; wallType = tile; }
             }
 
             if (side === 0) perpWallDist = (mapX - posX + (1 - stepX) / 2) / rayDirX;
@@ -770,27 +896,20 @@
 
             let tex = textures.wall;
             if(wallType === 5) tex = textures.wall_bloody_1;
-            if(wallType === 6) tex = textures.wall_bloody_2;
-            if(wallType === 7) tex = textures.wall_bloody_3;
+            if(wallType === 8) tex = textures.wall_arrow_left;
+            if(wallType === 9) tex = textures.wall_arrow_right;
 
             ctx.drawImage(tex, texX, 0, 1, texHeight, x, drawStart, 1, drawEnd - drawStart);
             
-            // Flashlight Logic for Walls
-            // Basic brightness based on distance
-            let lightIntensity = 1.0 / (perpWallDist * 0.3); // Increased brightness multiplier for flashlight feel
+            // Flashlight Logic
+            let lightIntensity = 1.0 / (perpWallDist * 0.3); 
             if (lightIntensity > 1) lightIntensity = 1;
             
-            // Radial falloff (Flashlight beam)
-            // Calculate distance from center of screen (0 to 1)
             let screenDist = Math.abs(x - SCREEN_WIDTH / 2) / (SCREEN_WIDTH / 2);
-            // Falloff function
-            let beam = 1.0 - Math.pow(screenDist, 2); // Parabolic falloff
+            let beam = 1.0 - Math.pow(screenDist, 2); 
             lightIntensity *= beam;
 
-            // Extra darkness at distance
             if(perpWallDist > 8) lightIntensity *= 0.5;
-
-            // Side darkening
             if (side === 1) lightIntensity *= 0.7;
 
             ctx.fillStyle = `rgba(0,0,0,${1 - lightIntensity})`;
@@ -830,7 +949,7 @@
             else if (sprite.type === 'piet') tex = textures.piet;
             else if (sprite.type === 'paper') tex = textures.paper;
 
-            if (sprite.type === 'piet') ctx.globalAlpha = 0.9; // More visible
+            if (sprite.type === 'piet') ctx.globalAlpha = 0.9;
             else ctx.globalAlpha = 1.0;
 
             for (let stripe = Math.floor(drawStartX); stripe < Math.floor(drawEndX); stripe++) {
@@ -840,7 +959,6 @@
                 if (transformY > 0 && stripe > 0 && stripe < SCREEN_WIDTH && transformY < zBuffer[stripe]) {
                     ctx.drawImage(tex, realTexX, 0, 1, 128, stripe, drawStartY, 1, drawEndY - drawStartY);
                     
-                    // Flashlight Logic for Sprites
                     let lightIntensity = 1.0 / (transformY * 0.3); 
                     if (lightIntensity > 1) lightIntensity = 1;
                     
@@ -848,7 +966,7 @@
                     let beam = 1.0 - Math.pow(screenDist, 2);
                     lightIntensity *= beam;
                     
-                    if (sprite.type !== 'paper') { // Paper always glows
+                    if (sprite.type !== 'paper') { 
                         ctx.fillStyle = `rgba(0,0,0,${1 - lightIntensity})`;
                         ctx.fillRect(stripe, drawStartY, 1, drawEndY - drawStartY);
                     }
