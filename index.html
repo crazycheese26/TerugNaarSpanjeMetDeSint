@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>De Wraak van de Sint - 3D Horror</title>
+    <title>De Wraak van de Sint - Lore Edition</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Creepster&family=Nosifer&family=Roboto:wght@400;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Creepster&family=Nosifer&family=Roboto:wght@400;700&family=Caveat:wght@700&display=swap');
 
         body {
             margin: 0;
             padding: 0;
             background-color: #000;
-            color: #d00;
+            color: #a00;
             font-family: 'Roboto', sans-serif;
             overflow: hidden;
             user-select: none;
@@ -27,60 +27,82 @@
             align-items: center;
         }
 
-        /* Retro pixelated look */
+        /* CRT/VHS Effects - Brightness bumped up slightly to fix black screen */
         canvas {
             image-rendering: pixelated; 
             width: 100%;
             height: 100%;
-            max-width: 100%;
-            max-height: 100%;
+            filter: contrast(1.2) brightness(1.1) sepia(0.3) hue-rotate(-5deg); 
+        }
+
+        .scanlines {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.2));
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 50;
+        }
+
+        .noise {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIj48ZmlsdGVyIGlkPSJub2lzZSI+PGZlVHVyYnVsZW5jZSB0eXBlPSJmcmFjdGFsTm9pc2UiIGJhc2VGcmVxdWVuY3k9IjAuNjUiIG51bU9jdGF2ZXM9IjMiIHN0aXRjaFRpbGVzPSJzdGl0Y2giLz48L2ZpbHRlcj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWx0ZXI9InVybCgjbm9pc2UpIiBvcGFjaXR5PSIwLjA4Ii8+PC9zdmc+');
+            pointer-events: none;
+            z-index: 51;
+            opacity: 0.1;
+            animation: noiseAnim 0.2s infinite;
+        }
+
+        @keyframes noiseAnim {
+            0% { transform: translate(0,0); }
+            100% { transform: translate(10px,10px); }
         }
 
         #ui-layer {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
             padding: 20px;
             box-sizing: border-box;
+            z-index: 60;
+        }
+
+        #lore-text {
+            position: absolute;
+            bottom: 20%;
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: 'Caveat', cursive;
+            font-size: 2rem;
+            color: #ddd;
+            text-shadow: 2px 2px 4px #000;
+            text-align: center;
+            opacity: 0;
+            transition: opacity 0.5s;
+            background: rgba(0,0,0,0.7);
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #444;
+            max-width: 80%;
+            pointer-events: none;
         }
 
         #score-display {
-            color: #e6b800; /* Gold */
+            color: #888;
             font-family: 'Creepster', cursive;
-            font-size: 3rem;
-            text-shadow: 2px 2px 0 #000, 0 0 10px #ff0000;
-        }
-
-        #stamina-bar-container {
-            width: 300px;
-            height: 25px;
-            background: #222;
-            border: 3px solid #500;
-            align-self: flex-start;
-            margin-top: 10px;
-            box-shadow: 0 0 10px #000;
-        }
-
-        #stamina-bar {
-            width: 100%;
-            height: 100%;
-            background: #00cc00;
-            transition: width 0.1s;
+            font-size: 2rem;
+            opacity: 0.7;
+            text-shadow: 2px 2px 0 #000;
         }
 
         #message-overlay {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.95);
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #050000;
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -92,10 +114,7 @@
         
         #jumpscare-overlay {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0; width: 100%; height: 100%;
             background: #000;
             display: flex;
             justify-content: center;
@@ -103,109 +122,55 @@
             z-index: 200;
             opacity: 0;
             pointer-events: none;
-            transition: opacity 0.1s;
+            transition: opacity 0.05s;
         }
         
-        #jumpscare-img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
+        #jumpscare-img { width: 100%; height: 100%; object-fit: cover; }
 
         h1 {
             font-family: 'Nosifer', cursive;
             font-size: 4rem;
-            color: #ff0000;
+            color: #b00;
             margin-bottom: 20px;
-            animation: pulse 2s infinite;
-            text-shadow: 0 5px 10px #000;
+            text-shadow: 4px 4px 0px #000;
         }
 
         p {
-            color: #ccc;
-            font-size: 1.2rem;
-            max-width: 600px;
+            color: #666;
+            font-size: 1.1rem;
+            max-width: 500px;
             margin: 0 auto 30px auto;
-            line-height: 1.5;
-            text-shadow: 1px 1px 2px #000;
+            line-height: 1.6;
+            font-family: monospace;
         }
 
         button {
-            background: #500;
-            color: #fff;
-            border: 2px solid #f00;
+            background: #100;
+            color: #800;
+            border: 1px solid #400;
             padding: 20px 40px;
-            font-size: 2rem;
+            font-size: 1.5rem;
             font-family: 'Creepster', cursive;
             cursor: pointer;
             transition: all 0.2s;
             text-transform: uppercase;
+            letter-spacing: 2px;
         }
 
         button:hover {
-            background: #f00;
-            box-shadow: 0 0 30px #f00;
-            transform: scale(1.05);
+            background: #300;
+            color: #f00;
+            box-shadow: 0 0 20px #500;
         }
 
-        .hidden {
-            display: none !important;
-        }
+        .hidden { display: none !important; }
 
-        /* Blood overlay vignette */
         #vignette {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: radial-gradient(circle, transparent 50%, rgba(0,0,0,0.8) 90%, black 100%);
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, transparent 30%, rgba(0,0,0,0.8) 70%, black 100%);
             pointer-events: none;
-            z-index: 10;
-        }
-
-        #damage-flash {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: red;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.5s;
-            z-index: 11;
-        }
-
-        @keyframes pulse {
-            0% { text-shadow: 0 0 10px #500; }
-            50% { text-shadow: 0 0 25px #f00; transform: scale(1.02); }
-            100% { text-shadow: 0 0 10px #500; }
-        }
-
-        @keyframes shake {
-            0% { transform: translate(1px, 1px) rotate(0deg); }
-            20% { transform: translate(-3px, 0px) rotate(1deg); }
-            40% { transform: translate(1px, -1px) rotate(1deg); }
-            60% { transform: translate(-3px, 1px) rotate(0deg); }
-            80% { transform: translate(-1px, -1px) rotate(1deg); }
-            100% { transform: translate(1px, -2px) rotate(-1deg); }
-        }
-
-        .shaking {
-            animation: shake 0.5s;
-            animation-iteration-count: infinite;
-        }
-        
-        #controls-hint {
-            position: absolute;
-            bottom: 30px;
-            width: 100%;
-            text-align: center;
-            color: #888;
-            font-family: 'Creepster', cursive;
-            font-size: 1.2rem;
-            text-shadow: 1px 1px 0 #000;
+            z-index: 55;
         }
     </style>
 </head>
@@ -213,72 +178,63 @@
 
 <div id="game-container">
     <canvas id="gameCanvas"></canvas>
+    <div class="scanlines"></div>
+    <div class="noise"></div>
     <div id="vignette"></div>
-    <div id="damage-flash"></div>
     <div id="jumpscare-overlay"></div>
     
     <div id="ui-layer">
         <div>
-            <div id="score-display">ZOEK DE DEUR</div>
-            <div id="stamina-bar-container"><div id="stamina-bar"></div></div>
+            <div id="score-display">VIND DE DEUR</div>
         </div>
-        <div id="controls-hint" class="hidden">W/S: Lopen | A/D: Draaien | SHIFT: Rennen</div>
+        <div id="lore-text"></div>
+        <div id="controls-hint" style="color:#444; font-family: monospace;">WASD / Shift</div>
     </div>
 
     <div id="message-overlay">
-        <h1>ONTSNAP AAN DE SINT</h1>
-        <p>DOOM EDITIE</p>
-        <p>Je zit gevangen in een oneindig doolhof. Er is één <strong>Verborgen Deur</strong> om te ontsnappen. Volg de bloedsporen... als je durft.</p>
-        <button id="start-btn">START</button>
+        <h1>VERLOREN ZIELEN</h1>
+        <p>Lees de notities van zij die faalden. Leer van hun fouten.</p>
+        <p>Hij is geen heilige. Hij is hongerig.</p>
+        <button id="start-btn">BETREDEN</button>
     </div>
 </div>
 
 <script>
-    // --- Configuration (Doom Style) ---
-    const MAP_WIDTH = 30; // Larger map
-    const MAP_HEIGHT = 20;
-    const SCREEN_WIDTH = 640;  
-    const SCREEN_HEIGHT = 360;
-    const FOV = 0.66; 
+    // --- Configuration ---
+    const MAP_WIDTH = 45;
+    const MAP_HEIGHT = 35;
+    const SCREEN_WIDTH = 320; 
+    const SCREEN_HEIGHT = 180;
     
-    // Speeds
-    const MOVE_SPEED = 0.08;
-    const RUN_SPEED = 0.14;
-    const ROT_SPEED = 0.06;
+    const MOVE_SPEED = 0.07;
+    const RUN_SPEED = 0.12;
+    const ROT_SPEED = 0.05;
     
     // --- Audio ---
     let audioCtx;
-    let droneOsc;
     let nextAmbientSoundTime = 0;
     
     // --- Game State ---
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d', { alpha: false }); 
-    const uiLayer = document.getElementById('ui-layer');
     const msgOverlay = document.getElementById('message-overlay');
     const jumpscareOverlay = document.getElementById('jumpscare-overlay');
     const startBtn = document.getElementById('start-btn');
-    const scoreDisplay = document.getElementById('score-display');
-    const staminaBar = document.getElementById('stamina-bar');
-    const controlsHint = document.getElementById('controls-hint');
-    const gameContainer = document.getElementById('game-container');
-    const damageFlash = document.getElementById('damage-flash');
+    const loreTextEl = document.getElementById('lore-text');
 
     let gameRunning = false;
     let keys = {};
-    let stamina = 100;
     let sintProximity = 0;
     let zBuffer = []; 
     let startTime = 0; 
+    let frameCount = 0;
     
-    // Hallucination State
-    let hallucinations = []; // Array of active piet sprites
+    let hallucinations = [];
     let lastHallucinationCheck = 0;
 
-    // Map: 0=Floor, 1=Wall, 2=Start, 3=Exit (Door sprite), 5=Bloody Wall Hint
     let mapLayout = [];
 
-    // Player (camera)
+    // Player
     let posX = 0, posY = 0; 
     let dirX = -1, dirY = 0; 
     let planeX = 0, planeY = 0.66; 
@@ -287,6 +243,19 @@
     let sint = { x: 0, y: 0, active: true };
     let sprites = []; 
     
+    // Lore Database
+    const loreMessages = [
+        "Dag 4. Het is hier zo koud. De Pieten praten niet, ze staren alleen.",
+        "Hij is geen heiligman. Ik zag hem iets eten... het was geen marsepein.",
+        "De deur verandert van plek. Het doolhof leeft.",
+        "Kijk hem niet in de ogen. Hij ruikt je angst.",
+        "5 December is geen feestdag. Het is een offerdag.",
+        "Ik hoor de bellen... ze komen dichterbij.",
+        "Er is geen weg terug naar Spanje. Dit is de hel."
+    ];
+
+    const wallMessages = ["HIJ ZIET JE", "REN", "GEEN UITGANG", "DOOD", "5 DEC", "†"];
+
     // Textures
     const texWidth = 64;
     const texHeight = 64;
@@ -294,38 +263,40 @@
 
     // --- Texture Generation ---
     function generateTextures() {
-        function createTexture(color1, color2, type) {
+        function createTexture(color1, color2, type, variant) {
             const c = document.createElement('canvas');
             c.width = texWidth; c.height = texHeight;
             const cx = c.getContext('2d');
             
-            // Background
-            cx.fillStyle = color1;
+            // Base Color (Significantly brightened from previous version to fix black screen)
+            cx.fillStyle = color1; 
             cx.fillRect(0,0,64,64);
+            
+            // Gritty noise
+            for(let i=0; i<300; i++) {
+                cx.fillStyle = Math.random()>0.5 ? '#000' : '#222';
+                cx.globalAlpha = 0.2;
+                cx.fillRect(Math.random()*64, Math.random()*64, 2, 2);
+            }
+            cx.globalAlpha = 1.0;
 
-            if (type === 'wall' || type === 'wall_bloody') {
-                // Bricks
+            if (type.includes('wall')) {
                 cx.fillStyle = color2;
-                for(let i=0; i<150; i++) cx.fillRect(Math.random()*64, Math.random()*64, 2, 2); 
-                cx.fillStyle = 'rgba(0,0,0,0.4)';
-                cx.fillRect(0, 0, 64, 2); 
-                cx.fillRect(0, 32, 64, 2); 
-                cx.fillRect(0, 0, 2, 32); 
-                cx.fillRect(32, 32, 2, 32); 
-
+                for(let i=0; i<6; i++) cx.fillRect(i*10 + Math.random()*4, 0, 4, 64);
+                
                 if (type === 'wall_bloody') {
-                    // Blood stains / Hints
-                    cx.fillStyle = '#900';
-                    cx.beginPath();
-                    // Draw a messy handprint shape
-                    cx.arc(32, 32, 15, 0, Math.PI*2);
-                    cx.fill();
-                    cx.fillRect(25, 40, 4, 15);
-                    cx.fillRect(35, 40, 4, 10);
-                    cx.fillRect(30, 40, 4, 20);
-                    cx.font = '20px serif';
-                    cx.fillStyle = '#c00';
-                    cx.fillText("HIER", 10, 25);
+                    cx.fillStyle = '#600'; // Brighter blood for visibility
+                    cx.font = 'bold 16px Courier';
+                    cx.save();
+                    cx.translate(32, 32);
+                    cx.rotate((Math.random()-0.5)*0.5);
+                    let msg = wallMessages[variant % wallMessages.length];
+                    cx.fillText(msg, -20, 5);
+                    
+                    // Drips
+                    cx.fillRect(-10, 10, 2, 20);
+                    cx.fillRect(10, 10, 3, 15);
+                    cx.restore();
                 }
             } 
             return c;
@@ -333,70 +304,91 @@
 
         function createSprite(type) {
             const c = document.createElement('canvas');
-            c.width = 64; c.height = 64;
+            c.width = 128; c.height = 128;
             const cx = c.getContext('2d');
             
-            if (type === 'door') {
-                // Secret Door
-                cx.fillStyle = '#321'; // Dark wood
-                cx.fillRect(10, 0, 44, 64);
-                cx.strokeStyle = '#532';
-                cx.lineWidth = 2;
-                cx.strokeRect(10, 0, 44, 64);
-                // Planks
-                cx.beginPath(); cx.moveTo(10, 20); cx.lineTo(54, 20); cx.stroke();
-                cx.beginPath(); cx.moveTo(10, 40); cx.lineTo(54, 40); cx.stroke();
-                // Symbol
-                cx.fillStyle = '#d00';
-                cx.font = '24px serif';
-                cx.fillText("†", 26, 35);
-                // Knob
-                cx.fillStyle = '#aa0';
-                cx.beginPath(); cx.arc(48, 35, 3, 0, Math.PI*2); cx.fill();
+            if (type === 'paper') {
+                // Glowing paper on floor
+                cx.fillStyle = '#ffc';
+                cx.fillRect(44, 100, 40, 28); // Paper
+                cx.fillStyle = '#000';
+                for(let i=0; i<4; i++) cx.fillRect(48, 105 + i*5, 30, 2); // Text lines
+                // Glow
+                cx.shadowBlur = 15; cx.shadowColor = '#ffc';
+                cx.strokeStyle = '#ffc'; cx.strokeRect(44,100,40,28);
+                cx.shadowBlur = 0;
+            } else if (type === 'door') {
+                cx.fillStyle = '#222'; cx.fillRect(30, 0, 68, 128); // Brighter door
+                cx.strokeStyle = '#632'; cx.lineWidth = 4; cx.strokeRect(30, 0, 68, 128);
+                cx.fillStyle = '#a00'; cx.font = '40px serif'; cx.fillText("Ω", 50, 80);
             } else if (type === 'sint') {
-                // Mitre
-                cx.fillStyle = '#900';
-                cx.beginPath(); cx.moveTo(10, 30); cx.lineTo(32, 5); cx.lineTo(54, 30); cx.lineTo(54, 60); cx.lineTo(10, 60); cx.fill();
-                cx.fillStyle = '#eb0'; cx.fillRect(28, 15, 8, 30); cx.fillRect(18, 25, 28, 8);
-                cx.fillStyle = '#fff'; 
-                cx.beginPath(); cx.arc(24, 45, 3, 0, Math.PI*2); cx.arc(40, 45, 3, 0, Math.PI*2); cx.fill();
+                // Taller, Scarier Sint
+                cx.fillStyle = '#800'; // Robe - Brighter
+                cx.beginPath(); cx.moveTo(40, 128); cx.lineTo(64, 20); cx.lineTo(88, 128); cx.fill();
+                cx.fillStyle = '#600';
+                cx.beginPath(); cx.moveTo(40, 128); cx.lineTo(30, 50); cx.lineTo(64, 20); cx.lineTo(98, 50); cx.lineTo(88, 128); cx.fill();
+                cx.strokeStyle = '#d90'; cx.lineWidth = 4;
+                cx.beginPath(); cx.moveTo(90, 128); cx.lineTo(100, 10); cx.stroke();
+                cx.beginPath(); cx.arc(100, 10, 5, 0, Math.PI*2); cx.stroke();
+                cx.fillStyle = '#eee'; 
+                cx.beginPath(); cx.arc(64, 30, 12, 0, Math.PI*2); cx.fill();
+                cx.fillStyle = '#a00';
+                cx.beginPath(); cx.moveTo(50, 25); cx.lineTo(64, -10); cx.lineTo(78, 25); cx.fill();
+                cx.strokeStyle = '#fa0'; cx.lineWidth=2;
+                cx.beginPath(); cx.moveTo(64, -10); cx.lineTo(64, 25); cx.stroke();
                 cx.fillStyle = '#f00'; 
-                cx.beginPath(); cx.arc(24, 45, 1, 0, Math.PI*2); cx.arc(40, 45, 1, 0, Math.PI*2); cx.fill();
+                cx.shadowBlur = 10; cx.shadowColor = 'red';
+                cx.beginPath(); cx.arc(60, 30, 2, 0, Math.PI*2); cx.fill();
+                cx.beginPath(); cx.arc(68, 30, 2, 0, Math.PI*2); cx.fill();
+                cx.shadowBlur = 0;
+                cx.fillStyle = '#fff';
+                cx.beginPath(); cx.moveTo(52, 35); cx.lineTo(64, 60); cx.lineTo(76, 35); cx.fill();
             } else if (type === 'piet') {
-                // Scary shadow figure
-                cx.fillStyle = '#111'; // Pitch black
-                cx.beginPath(); cx.arc(32, 20, 12, 0, Math.PI*2); cx.fill(); // Head
-                cx.fillRect(20, 30, 24, 34); // Body
-                // Feather (Bright color to stand out in dark)
-                cx.strokeStyle = '#a0a'; cx.lineWidth=3; cx.beginPath(); cx.moveTo(32, 10); cx.lineTo(50, 0); cx.stroke();
-                // Glowing Eyes
-                cx.fillStyle = '#ff0';
-                cx.fillRect(28, 18, 3, 3); cx.fillRect(36, 18, 3, 3);
+                cx.fillStyle = '#0a0a0a'; 
+                cx.beginPath(); cx.ellipse(64, 80, 20, 40, 0, 0, Math.PI*2); cx.fill();
+                cx.beginPath(); cx.arc(64, 40, 18, 0, Math.PI*2); cx.fill();
+                cx.strokeStyle = '#505'; cx.lineWidth=3; 
+                cx.beginPath(); cx.moveTo(64, 25); cx.lineTo(90, 10); cx.stroke();
+                cx.fillStyle = '#fff';
+                cx.shadowBlur = 5; cx.shadowColor = '#fff';
+                cx.beginPath(); cx.arc(58, 40, 2, 0, Math.PI*2); cx.fill();
+                cx.beginPath(); cx.arc(70, 40, 2, 0, Math.PI*2); cx.fill();
+                cx.shadowBlur = 0;
             }
             return c;
         }
 
         function createJumpscare() {
             const c = document.createElement('canvas');
-            c.width = 300; c.height = 300;
+            c.width = 400; c.height = 400;
             const cx = c.getContext('2d');
+            cx.fillStyle = '#000'; cx.fillRect(0,0,400,400);
+            for(let i=0; i<1000; i++) {
+                cx.fillStyle = Math.random()>0.8?'#f00':'#200';
+                cx.fillRect(Math.random()*400, Math.random()*400, 5, 5);
+            }
+            cx.fillStyle = '#ccc';
+            cx.beginPath(); cx.arc(200, 180, 120, 0, Math.PI*2); cx.fill();
+            cx.fillRect(140, 180, 120, 150);
             cx.fillStyle = '#000';
-            cx.fillRect(0,0,300,300);
-            cx.fillStyle = '#f00';
-            cx.beginPath(); cx.arc(150, 150, 100, 0, Math.PI*2); cx.fill();
-            cx.fillStyle = '#000';
-            cx.beginPath(); cx.ellipse(110, 130, 20, 40, 0, 0, Math.PI*2); cx.fill();
-            cx.beginPath(); cx.ellipse(190, 130, 20, 40, 0, 0, Math.PI*2); cx.fill();
-            cx.beginPath(); cx.moveTo(100, 200); cx.quadraticCurveTo(150, 280, 200, 200); cx.fill();
-            cx.fillStyle = '#fff';
-            cx.beginPath(); cx.arc(110, 130, 5, 0, Math.PI*2); cx.fill();
-            cx.beginPath(); cx.arc(190, 130, 5, 0, Math.PI*2); cx.fill();
+            cx.beginPath(); cx.arc(150, 160, 30, 0, Math.PI*2); cx.fill();
+            cx.beginPath(); cx.arc(250, 160, 30, 0, Math.PI*2); cx.fill();
+            cx.beginPath(); cx.ellipse(200, 320, 60, 100, 0, 0, Math.PI*2); cx.fill();
+            cx.fillStyle = '#ff9';
+            for(let i=0; i<10; i++) {
+                cx.fillRect(150 + i*10, 250, 5, 20); 
+                cx.fillRect(150 + i*10, 380, 5, 20); 
+            }
             return c;
         }
 
-        textures.wall = createTexture('#444', '#555', 'wall'); 
-        textures.wall_bloody = createTexture('#444', '#555', 'wall_bloody');
+        // Updated texture colors: much brighter base to counter the darkness filter
+        textures.wall = createTexture('#444', '#333', 'wall', 0); 
+        textures.wall_bloody_1 = createTexture('#444', '#333', 'wall_bloody', 0);
+        textures.wall_bloody_2 = createTexture('#444', '#333', 'wall_bloody', 1);
+        textures.wall_bloody_3 = createTexture('#444', '#333', 'wall_bloody', 2);
         textures.door = createSprite('door');
+        textures.paper = createSprite('paper');
         textures.sint = createSprite('sint');
         textures.piet = createSprite('piet');
         
@@ -410,166 +402,118 @@
 
     // --- Map Generation ---
     function generateMap() {
-        // Initialize with walls
         let map = [];
         for(let y=0; y<MAP_HEIGHT; y++) {
             let row = [];
-            for(let x=0; x<MAP_WIDTH; x++) {
-                row.push(1);
-            }
+            for(let x=0; x<MAP_WIDTH; x++) row.push(1);
             map.push(row);
         }
 
-        // Maze Generation (Recursive Backtracker)
-        // Dit zorgt voor echte doolhof gangen in plaats van open ruimtes
         let stack = [];
-        let startX = 1;
-        let startY = 1;
-        
+        let startX = 1, startY = 1;
         map[startY][startX] = 0;
         stack.push({x: startX, y: startY});
         
         while(stack.length > 0) {
             let current = stack[stack.length - 1];
             let neighbors = [];
-            
-            // Kijk 2 stappen in elke richting (voor muren tussenin)
-            let dirs = [
-                {x: 0, y: -2}, {x: 0, y: 2},
-                {x: -2, y: 0}, {x: 2, y: 0}
-            ];
-            
+            let dirs = [{x: 0, y: -2}, {x: 0, y: 2}, {x: -2, y: 0}, {x: 2, y: 0}];
             for(let d of dirs) {
                 let nx = current.x + d.x;
                 let ny = current.y + d.y;
-                
-                // Check bounds (houd 1 tegel rand)
                 if(nx > 0 && nx < MAP_WIDTH-1 && ny > 0 && ny < MAP_HEIGHT-1) {
-                    if(map[ny][nx] === 1) { // Als nog niet bezocht (muur)
-                        neighbors.push({x: nx, y: ny, dx: d.x/2, dy: d.y/2});
-                    }
+                    if(map[ny][nx] === 1) neighbors.push({x: nx, y: ny, dx: d.x/2, dy: d.y/2});
                 }
             }
-            
             if(neighbors.length > 0) {
                 let chosen = neighbors[Math.floor(Math.random() * neighbors.length)];
-                // Verwijder muur tussen huidige en buurman
                 map[current.y + chosen.dy][current.x + chosen.dx] = 0;
-                // Markeer buurman als vloer
                 map[chosen.y][chosen.x] = 0;
                 stack.push({x: chosen.x, y: chosen.y});
-            } else {
-                stack.pop();
+            } else stack.pop();
+        }
+        
+        for(let i=0; i<30; i++) {
+            let rx = Math.floor(Math.random()*(MAP_WIDTH-2))+1;
+            let ry = Math.floor(Math.random()*(MAP_HEIGHT-2))+1;
+            if(map[ry][rx]===1) {
+                if((map[ry-1][rx]===0 && map[ry+1][rx]===0) || (map[ry][rx-1]===0 && map[ry][rx+1]===0)) map[ry][rx]=0;
             }
         }
 
-        // Maak wat extra openingen (loops) zodat je niet te snel vastloopt
-        for(let i = 0; i < 40; i++) {
-            let rx = Math.floor(Math.random() * (MAP_WIDTH - 2)) + 1;
-            let ry = Math.floor(Math.random() * (MAP_HEIGHT - 2)) + 1;
-            if(map[ry][rx] === 1) {
-                // Check of het twee bestaande vloeren verbindt
-                let floorCount = 0;
-                if(map[ry-1][rx] === 0) floorCount++;
-                if(map[ry+1][rx] === 0) floorCount++;
-                if(map[ry][rx-1] === 0) floorCount++;
-                if(map[ry][rx+1] === 0) floorCount++;
+        posX = 1.5; posY = 1.5;
+
+        // Place Lore Papers
+        for(let i=0; i<10; i++) {
+            let rx = Math.floor(Math.random() * MAP_WIDTH);
+            let ry = Math.floor(Math.random() * MAP_HEIGHT);
+            if(map[ry][rx] === 0) {
+                let msg = loreMessages[Math.floor(Math.random() * loreMessages.length)];
+                sprites.push({ x: rx+0.5, y: ry+0.5, type: 'paper', active: true, msg: msg });
                 
-                if(floorCount >= 2) map[ry][rx] = 0;
+                // Add bloody wall near paper
+                if(map[ry][rx-1]===1) map[ry][rx-1] = 5 + Math.floor(Math.random()*3); // 5, 6, 7
             }
         }
 
-        // Start Speler (Linksboven, want daar begint het algoritme altijd met een open plek)
-        posX = 1.5;
-        posY = 1.5;
-
-        // Plaats Exit (Ver weg van speler)
+        // Place Exit
         let placedExit = false;
         while(!placedExit) {
             let rx = Math.floor(Math.random() * MAP_WIDTH);
             let ry = Math.floor(Math.random() * MAP_HEIGHT);
-            // Moet vloer zijn en redelijk ver weg (onderin of rechts)
-            if(map[ry][rx] === 0 && (rx > MAP_WIDTH/2 || ry > MAP_HEIGHT/2)) {
+            if(map[ry][rx] === 0 && Math.hypot(rx - posX, ry - posY) > 25) {
                 sprites.push({ x: rx+0.5, y: ry+0.5, type: 'door', active: true });
                 placedExit = true;
-                
-                // Hints op muren in de buurt
-                if(map[ry][rx-1] === 1) map[ry][rx-1] = 5;
-                else if(map[ry][rx+1] === 1) map[ry][rx+1] = 5;
-                else if(map[ry-1][rx] === 1) map[ry-1][rx] = 5;
-                else if(map[ry+1][rx] === 1) map[ry+1][rx] = 5;
+                if(map[ry][rx-1]===1) map[ry][rx-1]=5;
+                else if(map[ry][rx+1]===1) map[ry][rx+1]=5;
             }
         }
 
-        // Plaats Sint (Ver weg van speler)
+        // Place Sint
         let placedSint = false;
         while(!placedSint) {
             let rx = Math.floor(Math.random() * MAP_WIDTH);
             let ry = Math.floor(Math.random() * MAP_HEIGHT);
-            let dist = Math.hypot(rx - posX, ry - posY);
-            if(map[ry][rx] === 0 && dist > 15) {
+            if(map[ry][rx] === 0 && Math.hypot(rx - posX, ry - posY) > 20) {
                 sint = { x: rx+0.5, y: ry+0.5, type: 'sint', active: true };
                 sprites.push(sint);
                 placedSint = true;
             }
         }
-
         return map;
     }
 
-    // --- Initialization ---
-
+    // --- Init ---
     function initGame() {
         canvas.width = SCREEN_WIDTH;
         canvas.height = SCREEN_HEIGHT;
         generateTextures();
-        
         sprites = [];
         hallucinations = [];
-        
-        // Generate Map
         mapLayout = generateMap();
         
-        // Reset Player Vectors
         dirX = -1; dirY = 0;
         planeX = 0; planeY = 0.66;
         
-        stamina = 100;
         gameRunning = true;
         startTime = Date.now();
-        nextAmbientSoundTime = Date.now() + 3000 + Math.random() * 5000;
+        nextAmbientSoundTime = Date.now() + 2000;
         
         msgOverlay.classList.add('hidden');
         jumpscareOverlay.style.opacity = 0;
-        controlsHint.classList.remove('hidden');
-        damageFlash.style.opacity = 0;
-        
         initAudio();
         requestAnimationFrame(gameLoop);
     }
 
-    // --- Input Handling ---
+    window.addEventListener('keydown', (e) => { keys[e.key.toLowerCase()] = true; if(e.shiftKey) keys['shift'] = true; });
+    window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; if(!e.shiftKey) keys['shift'] = false; });
+    startBtn.addEventListener('click', () => { initGame(); });
 
-    window.addEventListener('keydown', (e) => {
-        keys[e.key.toLowerCase()] = true;
-        if(e.shiftKey) keys['shift'] = true;
-    });
-
-    window.addEventListener('keyup', (e) => {
-        keys[e.key.toLowerCase()] = false;
-        if(!e.shiftKey) keys['shift'] = false;
-    });
-
-    startBtn.addEventListener('click', () => {
-        initGame();
-    });
-
-    // --- Physics & Logic ---
-
+    // --- Update ---
     function updateGame() {
         let now = Date.now();
-        
-        // Rotation
+        frameCount++;
+
         if (keys['d'] || keys['arrowright']) {
             let oldDirX = dirX;
             dirX = dirX * Math.cos(-ROT_SPEED) - dirY * Math.sin(-ROT_SPEED);
@@ -587,19 +531,8 @@
             planeY = oldPlaneX * Math.sin(ROT_SPEED) + planeY * Math.cos(ROT_SPEED);
         }
 
-        // Move
-        let currentSpeed = MOVE_SPEED;
-        if (keys['shift'] && stamina > 0) {
-            currentSpeed = RUN_SPEED;
-            stamina -= 1;
-        } else {
-            stamina = Math.min(100, stamina + 0.5);
-        }
-        staminaBar.style.width = stamina + "%";
-        staminaBar.style.background = stamina < 20 ? "#f00" : "#00cc00";
-
-        // Collision Check (Treat walls 1 and 5 as blocking)
-        function isBlocking(val) { return val === 1 || val === 5; }
+        let currentSpeed = keys['shift'] ? RUN_SPEED : MOVE_SPEED;
+        function isBlocking(val) { return val === 1 || (val >= 5 && val <= 7); }
 
         if (keys['w'] || keys['arrowup']) {
             if(!isBlocking(mapLayout[Math.floor(posY)][Math.floor(posX + dirX * currentSpeed * 2)])) posX += dirX * currentSpeed;
@@ -610,18 +543,29 @@
             if(!isBlocking(mapLayout[Math.floor(posY - dirY * currentSpeed * 2)][Math.floor(posX)])) posY -= dirY * currentSpeed;
         }
 
-        // --- Zwarte Piet Hallucinations ---
-        if (now - lastHallucinationCheck > 1000) { // Check every 1s (Increased Freq)
+        // --- Lore Check ---
+        let nearbyPaper = null;
+        sprites.forEach(s => {
+            if(s.type === 'paper') {
+                let d = Math.sqrt((posX - s.x)**2 + (posY - s.y)**2);
+                if(d < 1.0) nearbyPaper = s.msg;
+            }
+        });
+        
+        if(nearbyPaper) {
+            loreTextEl.innerText = nearbyPaper;
+            loreTextEl.style.opacity = 1;
+        } else {
+            loreTextEl.style.opacity = 0;
+        }
+
+        // --- Peeking Pieten Logic ---
+        if (now - lastHallucinationCheck > 1500) { 
             lastHallucinationCheck = now;
-            
-            // Allow up to 3 active hallucinations, 40% chance spawn
             if (hallucinations.length < 3 && Math.random() < 0.4) {
-                // Spawn vector: 5-10 units ahead (Closer)
-                let spawnDist = 5 + Math.random() * 5;
-                let hX = posX + dirX * spawnDist + (Math.random()-0.5)*2; // Add some jitter
-                let hY = posY + dirY * spawnDist + (Math.random()-0.5)*2;
-                
-                // Ensure valid location
+                let spawnDist = 6 + Math.random() * 6;
+                let hX = posX + dirX * spawnDist + (Math.random()-0.5)*4;
+                let hY = posY + dirY * spawnDist + (Math.random()-0.5)*4;
                 if (hX > 1 && hX < MAP_WIDTH-1 && hY > 1 && hY < MAP_HEIGHT-1) {
                     if (mapLayout[Math.floor(hY)][Math.floor(hX)] === 0) {
                         let piet = { x: hX, y: hY, type: 'piet', active: true, spawnTime: now };
@@ -632,15 +576,13 @@
             }
         }
         
-        // Update Hallucinations
         for(let i = hallucinations.length - 1; i >= 0; i--) {
             let p = hallucinations[i];
             let distToPiet = Math.hypot(posX - p.x, posY - p.y);
-            
-            // Vanish if SUPER close (1 unit) or old (3s)
-            if (distToPiet < 1.5 || (now - p.spawnTime > 3000)) {
+            if (distToPiet < 4) {
                 p.active = false; 
                 hallucinations.splice(i, 1);
+                playAmbientSound('vanish');
                 let spriteIndex = sprites.indexOf(p);
                 if (spriteIndex > -1) sprites.splice(spriteIndex, 1);
             }
@@ -648,8 +590,8 @@
 
         // --- Sint AI ---
         let timeAlive = (now - startTime) / 1000;
-        let sintSpeed = 0.02 + (timeAlive * 0.0003);
-        if (sintSpeed > 0.07) sintSpeed = 0.07;
+        let sintSpeed = 0.035 + (timeAlive * 0.0004);
+        if(sintSpeed > 0.09) sintSpeed = 0.09;
 
         let dx = posX - sint.x;
         let dy = posY - sint.y;
@@ -658,7 +600,6 @@
         if (dist > 0.5) {
             let sx = dx / dist * sintSpeed;
             let sy = dy / dist * sintSpeed;
-            
             if (!isBlocking(mapLayout[Math.floor(sint.y)][Math.floor(sint.x + sx * 1.5)])) sint.x += sx;
             if (!isBlocking(mapLayout[Math.floor(sint.y + sy * 1.5)][Math.floor(sint.x)])) sint.y += sy;
         }
@@ -666,132 +607,93 @@
         sintProximity = Math.max(0, 1 - (dist / 12)); 
         updateSound(now);
 
-        if (dist < 0.5) {
-            endGame(false);
-        }
-
-        // Door Interaction
+        if (dist < 0.4) endGame(false);
         sprites.forEach(s => {
             if (!s.active || s.type !== 'door') return;
             let d = Math.sqrt((posX - s.x)**2 + (posY - s.y)**2);
-            if (d < 0.8) {
-                 endGame(true);
-            }
+            if (d < 0.6) endGame(true);
         });
     }
 
-    // --- Audio System ---
-    
+    // --- Audio ---
     function initAudio() {
-        if (!audioCtx) {
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        }
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         if(audioCtx.state === 'suspended') audioCtx.resume();
-
-        if(!droneOsc) {
-            droneOsc = audioCtx.createOscillator();
-            let gain = audioCtx.createGain();
-            droneOsc.type = 'sawtooth';
-            droneOsc.frequency.value = 40;
-            droneOsc.connect(gain);
-            gain.connect(audioCtx.destination);
-            gain.gain.value = 0.05;
-            droneOsc.start();
-            droneOsc.gainNode = gain;
-        }
     }
 
     function updateSound(now) {
-        if(!droneOsc) return;
-        droneOsc.frequency.value = 30 + (sintProximity * 100);
-        let vol = 0.05 + (sintProximity * 0.15);
-        droneOsc.gainNode.gain.value = vol;
-
-        if(sintProximity > 0.6) {
-            gameContainer.classList.add('shaking');
-        } else {
-            gameContainer.classList.remove('shaking');
-        }
-
-        // Ambient Random Sounds
+        if(!audioCtx) return;
         if (now > nextAmbientSoundTime) {
-            playAmbientSound();
-            nextAmbientSoundTime = now + 4000 + Math.random() * 6000;
+            playAmbientSound('random');
+            nextAmbientSoundTime = now + 3000 + Math.random() * 5000;
         }
     }
 
-    function playAmbientSound() {
+    function playAmbientSound(type) {
         if(!audioCtx) return;
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
         osc.connect(gain);
         gain.connect(audioCtx.destination);
-
-        const type = Math.floor(Math.random() * 3);
         
-        if (type === 0) { // High pitch scratch
-            osc.type = 'sawtooth';
-            osc.frequency.setValueAtTime(800, audioCtx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1);
-            gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
-            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.2);
-            osc.start();
-            osc.stop(audioCtx.currentTime + 0.2);
-        } else if (type === 1) { // Low whisper groan
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(80, audioCtx.currentTime);
-            osc.frequency.linearRampToValueAtTime(60, audioCtx.currentTime + 1.0);
-            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 1.5);
-            osc.start();
-            osc.stop(audioCtx.currentTime + 1.5);
-        } else { // Weird warble
+        if (type === 'vanish') {
+            const bufferSize = audioCtx.sampleRate * 0.5;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+            const noise = audioCtx.createBufferSource();
+            noise.buffer = buffer;
+            const noiseGain = audioCtx.createGain();
+            noise.connect(noiseGain);
+            noiseGain.connect(audioCtx.destination);
+            noiseGain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            noiseGain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+            noise.start();
+        } else if (Math.random() < 0.3) {
             osc.type = 'triangle';
-            osc.frequency.setValueAtTime(300, audioCtx.currentTime);
-            osc.frequency.linearRampToValueAtTime(350, audioCtx.currentTime + 0.1);
-            osc.frequency.linearRampToValueAtTime(250, audioCtx.currentTime + 0.3);
-            gain.gain.value = 0.05;
+            osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+            osc.frequency.linearRampToValueAtTime(150, audioCtx.currentTime + 1);
+            gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 1);
             osc.start();
-            osc.stop(audioCtx.currentTime + 0.5);
-        }
-    }
-
-    function playSound(type) {
-        if(!audioCtx) return;
-        let osc = audioCtx.createOscillator();
-        let gain = audioCtx.createGain();
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-
-        if (type === 'scream') {
+            osc.stop(audioCtx.currentTime + 1);
+        } else {
             osc.type = 'sawtooth';
-            osc.frequency.setValueAtTime(600, audioCtx.currentTime);
-            osc.frequency.linearRampToValueAtTime(100, audioCtx.currentTime + 0.3);
-            
-            let osc2 = audioCtx.createOscillator();
-            osc2.type = 'square';
-            osc2.frequency.setValueAtTime(450, audioCtx.currentTime);
-            osc2.frequency.linearRampToValueAtTime(50, audioCtx.currentTime + 0.4);
-            osc2.connect(gain);
-
-            gain.gain.setValueAtTime(1.0, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1.5);
-            
+            osc.frequency.setValueAtTime(50, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(10, audioCtx.currentTime + 1);
+            gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 1);
             osc.start();
-            osc2.start();
-            osc.stop(audioCtx.currentTime + 1.5);
-            osc2.stop(audioCtx.currentTime + 1.5);
+            osc.stop(audioCtx.currentTime + 1);
         }
     }
 
-    // --- Raycasting Engine ---
+    function playScream() {
+        if(!audioCtx) return;
+        const bufferSize = audioCtx.sampleRate * 1.0;
+        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+        const noise = audioCtx.createBufferSource();
+        noise.buffer = buffer;
+        const gain = audioCtx.createGain();
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = 'highpass';
+        filter.frequency.value = 1000;
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(audioCtx.destination);
+        gain.gain.setValueAtTime(0.8, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1.0);
+        noise.start();
+    }
 
+    // --- Render ---
     function draw() {
-        ctx.fillStyle = '#050000'; // Ceiling (Darker)
-        ctx.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT / 2);
-        ctx.fillStyle = '#100505'; // Floor (Darker)
-        ctx.fillRect(0, SCREEN_HEIGHT / 2, SCREEN_WIDTH, SCREEN_HEIGHT / 2);
+        ctx.fillStyle = '#050505'; ctx.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT / 2);
+        ctx.fillStyle = '#111'; ctx.fillRect(0, SCREEN_HEIGHT / 2, SCREEN_WIDTH, SCREEN_HEIGHT / 2);
 
+        let breathe = Math.sin(frameCount * 0.05) * 0.05;
         zBuffer = []; 
 
         for (let x = 0; x < SCREEN_WIDTH; x++) {
@@ -801,48 +703,22 @@
 
             let mapX = Math.floor(posX);
             let mapY = Math.floor(posY);
-
-            let sideDistX, sideDistY;
+            let sideDistX, sideDistY, perpWallDist;
+            let stepX, stepY, side, wallType = 1;
             let deltaDistX = Math.abs(1 / rayDirX);
             let deltaDistY = Math.abs(1 / rayDirY);
-            let perpWallDist;
-
-            let stepX, stepY;
             let hit = 0;
-            let side; 
-            let wallType = 1;
 
-            if (rayDirX < 0) {
-                stepX = -1;
-                sideDistX = (posX - mapX) * deltaDistX;
-            } else {
-                stepX = 1;
-                sideDistX = (mapX + 1.0 - posX) * deltaDistX;
-            }
-            if (rayDirY < 0) {
-                stepY = -1;
-                sideDistY = (posY - mapY) * deltaDistY;
-            } else {
-                stepY = 1;
-                sideDistY = (mapY + 1.0 - posY) * deltaDistY;
-            }
+            if (rayDirX < 0) { stepX = -1; sideDistX = (posX - mapX) * deltaDistX; }
+            else { stepX = 1; sideDistX = (mapX + 1.0 - posX) * deltaDistX; }
+            if (rayDirY < 0) { stepY = -1; sideDistY = (posY - mapY) * deltaDistY; }
+            else { stepY = 1; sideDistY = (mapY + 1.0 - posY) * deltaDistY; }
 
             while (hit === 0) {
-                if (sideDistX < sideDistY) {
-                    sideDistX += deltaDistX;
-                    mapX += stepX;
-                    side = 0;
-                } else {
-                    sideDistY += deltaDistY;
-                    mapY += stepY;
-                    side = 1;
-                }
-                
+                if (sideDistX < sideDistY) { sideDistX += deltaDistX; mapX += stepX; side = 0; }
+                else { sideDistY += deltaDistY; mapY += stepY; side = 1; }
                 let tile = mapLayout[mapY][mapX];
-                if (tile === 1 || tile === 5) {
-                    hit = 1;
-                    wallType = tile;
-                }
+                if (tile === 1 || (tile >= 5 && tile <= 7)) { hit = 1; wallType = tile; }
             }
 
             if (side === 0) perpWallDist = (mapX - posX + (1 - stepX) / 2) / rayDirX;
@@ -851,43 +727,40 @@
             zBuffer[x] = perpWallDist; 
 
             let lineHeight = Math.floor(SCREEN_HEIGHT / perpWallDist);
+            lineHeight *= (1 + breathe * (perpWallDist < 5 ? 1 : 0));
+            
             let drawStart = -lineHeight / 2 + SCREEN_HEIGHT / 2;
-            if (drawStart < 0) drawStart = 0;
             let drawEnd = lineHeight / 2 + SCREEN_HEIGHT / 2;
-            if (drawEnd >= SCREEN_HEIGHT) drawEnd = SCREEN_HEIGHT - 1;
 
             let wallX; 
             if (side == 0) wallX = posY + perpWallDist * rayDirY;
             else           wallX = posX + perpWallDist * rayDirX;
             wallX -= Math.floor(wallX);
-
             let texX = Math.floor(wallX * texWidth);
             if(side == 0 && rayDirX > 0) texX = texWidth - texX - 1;
             if(side == 1 && rayDirY < 0) texX = texWidth - texX - 1;
 
-            let brightness = 1.0 / (perpWallDist * 0.5); 
-            if (brightness > 1) brightness = 1;
-            if (side === 1) brightness *= 0.7;
+            let tex = textures.wall;
+            if(wallType === 5) tex = textures.wall_bloody_1;
+            if(wallType === 6) tex = textures.wall_bloody_2;
+            if(wallType === 7) tex = textures.wall_bloody_3;
 
-            // Choose Texture based on Wall Type
-            let tex = (wallType === 5) ? textures.wall_bloody : textures.wall;
-
-            ctx.globalAlpha = 1.0; 
             ctx.drawImage(tex, texX, 0, 1, texHeight, x, drawStart, 1, drawEnd - drawStart);
             
+            let brightness = 1.0 / (perpWallDist * 0.5); 
+            if (brightness > 1) brightness = 1;
+            if (side === 1) brightness *= 0.6;
             ctx.fillStyle = `rgba(0,0,0,${1 - brightness})`;
             ctx.fillRect(x, drawStart, 1, drawEnd - drawStart);
         }
 
-        // --- Sprite Casting ---
-        sprites.forEach(sprite => {
-            sprite.dist = ((posX - sprite.x) * (posX - sprite.x) + (posY - sprite.y) * (posY - sprite.y));
+        sprites.forEach(s => {
+            s.dist = ((posX - s.x) ** 2 + (posY - s.y) ** 2);
         });
         sprites.sort((a, b) => b.dist - a.dist);
 
         for (let i = 0; i < sprites.length; i++) {
             if(!sprites[i].active) continue;
-
             let sprite = sprites[i];
             let spriteX = sprite.x - posX;
             let spriteY = sprite.y - posY;
@@ -895,41 +768,44 @@
             let invDet = 1.0 / (planeX * dirY - dirX * planeY);
             let transformX = invDet * (dirY * spriteX - dirX * spriteY);
             let transformY = invDet * (-planeY * spriteX + planeX * spriteY); 
-
             let spriteScreenX = Math.floor((SCREEN_WIDTH / 2) * (1 + transformX / transformY));
-
             let spriteHeight = Math.abs(Math.floor(SCREEN_HEIGHT / transformY));
-            let drawStartY = -spriteHeight / 2 + SCREEN_HEIGHT / 2;
-            if (drawStartY < 0) drawStartY = 0;
-            let drawEndY = spriteHeight / 2 + SCREEN_HEIGHT / 2;
-            if (drawEndY >= SCREEN_HEIGHT) drawEndY = SCREEN_HEIGHT - 1;
+            
+            let animOffset = 0;
+            if (sprite.type === 'piet') animOffset = Math.sin(frameCount * 0.05) * 10;
+            // Paper floats slightly
+            if (sprite.type === 'paper') animOffset = Math.sin(frameCount * 0.1) * 5 + 60; // Lower on screen
 
+            let drawStartY = -spriteHeight / 2 + SCREEN_HEIGHT / 2 + animOffset / transformY;
+            let drawEndY = spriteHeight / 2 + SCREEN_HEIGHT / 2 + animOffset / transformY;
             let spriteWidth = Math.abs(Math.floor(SCREEN_HEIGHT / transformY));
             let drawStartX = -spriteWidth / 2 + spriteScreenX;
             let drawEndX = spriteWidth / 2 + spriteScreenX;
-            if (drawStartX < 0) drawStartX = 0;
-            if (drawEndX >= SCREEN_WIDTH) drawEndX = SCREEN_WIDTH - 1;
 
             let tex;
             if (sprite.type === 'door') tex = textures.door;
             else if (sprite.type === 'sint') tex = textures.sint;
             else if (sprite.type === 'piet') tex = textures.piet;
+            else if (sprite.type === 'paper') tex = textures.paper;
 
-            // Piet transparency (ghost effect) but increased visibility
             if (sprite.type === 'piet') ctx.globalAlpha = 0.8; 
             else ctx.globalAlpha = 1.0;
 
             for (let stripe = Math.floor(drawStartX); stripe < Math.floor(drawEndX); stripe++) {
-                let texX = Math.floor(256 * (stripe - (-spriteWidth / 2 + spriteScreenX)) * texWidth / spriteWidth) / 256;
+                let texX = Math.floor(256 * (stripe - (-spriteWidth / 2 + spriteScreenX)) * 64 / spriteWidth) / 256;
+                let realTexX = Math.floor((stripe - (-spriteWidth / 2 + spriteScreenX)) * 128 / spriteWidth);
                 
                 if (transformY > 0 && stripe > 0 && stripe < SCREEN_WIDTH && transformY < zBuffer[stripe]) {
-                    ctx.drawImage(tex, texX, 0, 1, texHeight, stripe, drawStartY, 1, drawEndY - drawStartY);
-                    
+                    ctx.drawImage(tex, realTexX, 0, 1, 128, stripe, drawStartY, 1, drawEndY - drawStartY);
                     let brightness = 1.0 / (transformY * 0.5);
                     if (brightness > 1) brightness = 1;
                     if (brightness < 0) brightness = 0;
-                    ctx.fillStyle = `rgba(0,0,0,${1 - brightness})`;
-                    ctx.fillRect(stripe, drawStartY, 1, drawEndY - drawStartY);
+                    
+                    // Paper glows in dark
+                    if (sprite.type !== 'paper') {
+                        ctx.fillStyle = `rgba(0,0,0,${1 - brightness})`;
+                        ctx.fillRect(stripe, drawStartY, 1, drawEndY - drawStartY);
+                    }
                 }
             }
             ctx.globalAlpha = 1.0;
@@ -945,44 +821,32 @@
 
     function endGame(win) {
         gameRunning = false;
-        gameContainer.classList.remove('shaking');
-        
         if(!win) {
-            playSound('scream');
-            // Jumpscare
+            playScream();
             jumpscareOverlay.style.opacity = 1;
-            // Delay showing the menu so they see the scare
-            setTimeout(() => {
-                showMenu(win);
-            }, 2000);
+            let flashCount = 0;
+            let flashInt = setInterval(() => {
+                jumpscareOverlay.style.filter = `invert(${Math.random() > 0.5 ? 1 : 0}) contrast(2)`;
+                jumpscareOverlay.style.transform = `scale(${1 + Math.random()*0.1})`;
+                flashCount++;
+                if(flashCount > 20) clearInterval(flashInt);
+            }, 50);
+            setTimeout(() => { showMenu(win); }, 3000);
         } else {
             showMenu(win);
-        }
-        
-        if(droneOsc) {
-            droneOsc.stop();
-            droneOsc = null;
         }
     }
 
     function showMenu(win) {
-        let title = win ? "ONTSNAPT!" : "GEPAKT!";
-        let desc = win 
-            ? "Je bent door de deur ontsnapt. Je bent veilig... voor nu." 
-            : "Sinterklaas heeft je gevonden. Volgend jaar ben jij Zwarte Piet.";
-        let btnText = "OPNIEUW (NIEUWE MAP)";
-        let color = win ? "#0f0" : "#f00";
-
+        let title = win ? "ONTSNAPT" : "DOOD";
         msgOverlay.querySelector('h1').innerText = title;
-        msgOverlay.querySelector('h1').style.color = color;
-        msgOverlay.querySelector('p').innerText = desc;
+        msgOverlay.querySelector('h1').style.color = win ? "#4a4" : "#900";
+        msgOverlay.querySelector('p').innerText = win ? "Je bent vrij." : "Geen genade.";
         msgOverlay.querySelectorAll('p')[1].innerText = "";
-        startBtn.innerText = btnText;
+        startBtn.innerText = "OPNIEUW";
         msgOverlay.classList.remove('hidden');
-        controlsHint.classList.add('hidden');
         jumpscareOverlay.style.opacity = 0;
     }
-
 </script>
 </body>
 </html>
