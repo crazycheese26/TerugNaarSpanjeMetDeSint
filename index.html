@@ -465,8 +465,46 @@
 
         textures.wall = createTexture('#444', '#2a2a2a', 'wall', 0); 
         textures.wall_bloody = createTexture('#444', '#2a2a2a', 'wall_bloody', 'random');
-        textures.arrow_left = createTexture('#444', '#2a2a2a', 'wall', 'arrow_left');
-        textures.arrow_right = createTexture('#444', '#2a2a2a', 'wall', 'arrow_right');
+        
+        // --- NEW LANDMARK TEXTURES ---
+        // 1. Portrait
+        const c1 = document.createElement('canvas'); c1.width=64; c1.height=64; 
+        const ctx1 = c1.getContext('2d');
+        ctx1.fillStyle='#333'; ctx1.fillRect(0,0,64,64); // Wall bg
+        ctx1.fillStyle='#221'; ctx1.fillRect(16,10,32,40); // Frame
+        ctx1.fillStyle='#111'; ctx1.fillRect(18,12,28,36); // Canvas
+        ctx1.fillStyle='#433'; ctx1.beginPath(); ctx1.arc(32,25,8,0,Math.PI*2); ctx1.fill(); // Head
+        ctx1.fillStyle='#333'; ctx1.beginPath(); ctx1.arc(32,45,10,Math.PI,0); ctx1.fill(); // Shoulders
+        textures.landmark_portrait = c1;
+
+        // 2. Fireplace
+        const c2 = document.createElement('canvas'); c2.width=64; c2.height=64; 
+        const ctx2 = c2.getContext('2d');
+        ctx2.fillStyle='#522'; ctx2.fillRect(0,0,64,64); // Brick
+        ctx2.fillStyle='#300'; // Mortar
+        for(let i=0; i<64; i+=8) ctx2.fillRect(0,i,64,1);
+        for(let i=0; i<64; i+=16) for(let j=0; j<64; j+=8) ctx2.fillRect(i + (j%16==0?0:8), j, 1, 8);
+        ctx2.fillStyle='#000'; ctx2.beginPath(); ctx2.arc(32,64,20,Math.PI,0); ctx2.fill(); // Opening
+        textures.landmark_fireplace = c2;
+
+        // 3. Barred Window
+        const c3 = document.createElement('canvas'); c3.width=64; c3.height=64; 
+        const ctx3 = c3.getContext('2d');
+        ctx3.fillStyle='#333'; ctx3.fillRect(0,0,64,64);
+        ctx3.fillStyle='#001'; ctx3.fillRect(16,16,32,32); // Pane
+        ctx3.strokeStyle='#111'; ctx3.lineWidth=2; 
+        ctx3.beginPath(); ctx3.moveTo(32,16); ctx3.lineTo(32,48); ctx3.stroke(); // Bars
+        ctx3.beginPath(); ctx3.moveTo(16,32); ctx3.lineTo(48,32); ctx3.stroke();
+        textures.landmark_window = c3;
+
+        // 4. Scratches
+        const c4 = document.createElement('canvas'); c4.width=64; c4.height=64; 
+        const ctx4 = c4.getContext('2d');
+        ctx4.fillStyle='#333'; ctx4.fillRect(0,0,64,64);
+        ctx4.strokeStyle='#555'; ctx4.lineWidth=1;
+        ctx4.beginPath(); ctx4.moveTo(10,10); ctx4.lineTo(20,20); ctx4.moveTo(15,10); ctx4.lineTo(25,20); ctx4.stroke();
+        ctx4.fillStyle='#777'; ctx4.font='10px monospace'; ctx4.fillText("HELP", 20, 40);
+        textures.landmark_scratch = c4;
         
         textures.door = createSprite('door');
         textures.paper = createSprite('paper');
@@ -582,7 +620,7 @@
         let doorY = doorLocation.y;
         sprites.push({ x: doorX+0.5, y: doorY+0.5, type: 'door', active: true });
 
-        // Calculate Distances for Arrows (BFS from Door)
+        // Calculate Distances (Still used for Sint AI, but arrows are gone)
         let q = [{x: doorX, y: doorY, dist: 0}];
         distMap[doorY][doorX] = 0;
         while(q.length > 0) {
@@ -603,7 +641,20 @@
         for(let i=0; i<20; i++) {
              let rx = Math.floor(Math.random() * (MAP_WIDTH-2))+1;
              let ry = Math.floor(Math.random() * (MAP_HEIGHT-2))+1;
-             if(map[ry][rx] === 1) map[ry][rx] = 5; 
+             if(map[ry][rx] === 1) map[ry][rx] = 5; // Bloody wall
+        }
+
+        // --- PLACE LANDMARKS ---
+        for(let y=1; y<MAP_HEIGHT-1; y++) {
+            for(let x=1; x<MAP_WIDTH-1; x++) {
+                if(map[y][x] === 1) { // If normal wall
+                    let rand = Math.random();
+                    if(rand < 0.02) map[y][x] = 6; // Portrait
+                    else if(rand < 0.04) map[y][x] = 7; // Fireplace
+                    else if(rand < 0.06) map[y][x] = 8; // Window
+                    else if(rand < 0.08) map[y][x] = 9; // Scratch
+                }
+            }
         }
 
         for(let i=0; i<8; i++) {
@@ -1014,42 +1065,15 @@
 
                 let tex = textures.wall;
                 if(wallType === 5) tex = textures.wall_bloody;
-
-                let wallRandom = Math.abs(Math.sin(mapX * 12.9898 + mapY * 78.233) * 43758.5453) % 1;
-
-                // Increased arrow spawn chance from 0.0015 to 0.02 (2%)
-                if(wallRandom < 0.02) { 
-                    let adjX = mapX, adjY = mapY;
-                    if(side === 0) adjX -= stepX;
-                    else adjY -= stepY;
-
-                    if(adjX > 0 && adjX < MAP_WIDTH-1 && adjY > 0 && adjY < MAP_HEIGHT-1) {
-                        if(distMap && distMap[adjY] && distMap[adjY][adjX] !== undefined) {
-                             let arrowDir = null;
-                             if(side === 0) {
-                                let nDist = distMap[adjY-1] ? distMap[adjY-1][adjX] : 999;
-                                let sDist = distMap[adjY+1] ? distMap[adjY+1][adjX] : 999;
-                                if(mapLayout[adjY-1][adjX] === 0 && mapLayout[adjY+1][adjX] === 0) {
-                                    if(nDist < sDist) arrowDir = (stepX < 0) ? 'right' : 'left';
-                                    else if (sDist < nDist) arrowDir = (stepX < 0) ? 'left' : 'right';
-                                }
-                             } else {
-                                 let wDist = distMap[adjY][adjX-1];
-                                 let eDist = distMap[adjY][adjX+1];
-                                 if(mapLayout[adjY][adjX-1] === 0 && mapLayout[adjY][adjX+1] === 0) {
-                                     if(wDist < eDist) arrowDir = (stepY < 0) ? 'left' : 'right';
-                                     else if (eDist < wDist) arrowDir = (stepY < 0) ? 'right' : 'left';
-                                 }
-                             }
-                             if(arrowDir === 'left') tex = textures.arrow_left;
-                             if(arrowDir === 'right') tex = textures.arrow_right;
-                        }
-                    }
-                }
+                else if(wallType === 6) tex = textures.landmark_portrait;
+                else if(wallType === 7) tex = textures.landmark_fireplace;
+                else if(wallType === 8) tex = textures.landmark_window;
+                else if(wallType === 9) tex = textures.landmark_scratch;
 
                 ctx.drawImage(tex, texX, 0, 1, texHeight, x, drawStart, 1, drawEnd - drawStart);
                 
-                let lightIntensity = 1.0 / (perpWallDist * 0.4); 
+                // Increased flashlight range (divisor from 0.4 to 0.3)
+                let lightIntensity = 1.0 / (perpWallDist * 0.3); 
                 if (lightIntensity > 1) lightIntensity = 1;
                 
                 let beamWidth = SCREEN_WIDTH / 1.5; 
@@ -1060,7 +1084,8 @@
                 if(beam < 0) beam = 0;
                 
                 lightIntensity *= beam;
-                lightIntensity += 0.05; 
+                // Increased ambient light from 0.05 to 0.15 so it's never pitch black
+                lightIntensity += 0.15; 
                 
                 if(perpWallDist > 7) lightIntensity *= 0.3; 
                 if(side === 1) lightIntensity *= 0.6; 
