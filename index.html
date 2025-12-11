@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>De Wraak van de Sint - Flashlight Edition</title>
+    <title>De Wraak van de Sint - Jumpscare Edition</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Creepster&family=Nosifer&family=Roboto:wght@400;700&family=Caveat:wght@700&display=swap');
 
@@ -52,6 +52,7 @@
             z-index: 51;
             opacity: 0.08;
             animation: noiseAnim 0.2s infinite;
+            transition: opacity 0.1s;
         }
 
         @keyframes noiseAnim {
@@ -210,7 +211,7 @@
     <div id="message-overlay">
         <h1>VERLOREN ZIELEN</h1>
         <p>Je hebt alleen een zaklamp.</p>
-        <p>Volg de bloedsporen op de muren, ze wijzen de weg.</p>
+        <p>Kijk ze niet aan. Ze haten het als je kijkt.</p>
         <button id="start-btn">BETREDEN</button>
     </div>
 </div>
@@ -269,7 +270,7 @@
         "Kijk hem niet in de ogen. Hij ruikt je angst.",
         "5 December is de dag van het oordeel.",
         "Volg de pijlen als je wilt leven.",
-        "Er is geen weg terug naar Spanje. Dit is de hel."
+        "Ze stormen op je af als je te lang staart."
     ];
 
     // Textures
@@ -490,7 +491,6 @@
         let placedExit = false;
         let doorX = 0, doorY = 0;
         
-        // Find furthest point for door simply by random try with distance check
         let attempts = 0;
         while(!placedExit && attempts < 1000) {
             attempts++;
@@ -502,7 +502,6 @@
                 doorX = rx; doorY = ry;
             }
         }
-        // Fallback if map too small/dense
         if(!placedExit) {
              doorX = MAP_WIDTH-2; doorY = MAP_HEIGHT-2;
              map[doorY][doorX] = 0;
@@ -510,7 +509,6 @@
         }
 
         // --- Navigation Hints (Breadth-First Search) ---
-        // Flood fill from Door to generate directions
         let distMap = [];
         for(let y=0; y<MAP_HEIGHT; y++) {
             let row = [];
@@ -536,13 +534,9 @@
             }
         }
 
-        // Place Arrows on walls based on distMap
-        // Logic: Iterate over walls. If a wall is next to a path, check path direction.
-        // Simplified: Iterate over floor tiles. If distance > 10, occasionaly check neighbors.
         for(let y=1; y<MAP_HEIGHT-1; y++) {
             for(let x=1; x<MAP_WIDTH-1; x++) {
-                if(map[y][x] === 0 && distMap[y][x] > 5 && Math.random() < 0.15) {
-                    // This is a floor tile. Look for neighbor with lower distance.
+                if(map[y][x] === 0 && distMap[y][x] > 5 && Math.random() < 0.04) {
                     let currentDist = distMap[y][x];
                     let bestDir = null;
                     
@@ -551,39 +545,29 @@
                     else if (distMap[y][x-1] !== -1 && distMap[y][x-1] < currentDist) bestDir = 'W';
                     else if (distMap[y][x+1] !== -1 && distMap[y][x+1] < currentDist) bestDir = 'E';
                     
-                    if(bestDir) {
-                        // Place arrow on OPPOSITE wall so player sees it when looking that way?
-                        // Or place on side wall pointing?
-                        // Let's place on side walls.
-                        
-                        // If path is West (bestDir = W), place arrow on North wall pointing Left?
-                        // Keep it simple: Paint walls.
-                        if (bestDir === 'W') {
-                             // Path is to the left. If there is a wall Above(N) or Below(S), paint it.
-                             if(map[y-1][x]===1) map[y-1][x] = 8; // Left Arrow
-                             else if(map[y+1][x]===1) map[y+1][x] = 8;
-                        } else if (bestDir === 'E') {
-                             if(map[y-1][x]===1) map[y-1][x] = 9; // Right Arrow
-                             else if(map[y+1][x]===1) map[y+1][x] = 9;
-                        } else if (bestDir === 'N') {
-                             // Path is Up. If wall to right, paint Left Arrow? Rotations are hard.
-                             // Let's just use 8 and 9 for L/R relative to wall.
-                             // Actually, if map[y][x+1] is wall, and path is North, we want arrow pointing "Left" relative to player facing wall?
-                             // Just stick to walls that are perpendicular.
-                        }
+                    if(bestDir === 'W') { 
+                         if(map[y-1][x]===1) map[y-1][x] = 8; 
+                         else if(map[y+1][x]===1) map[y+1][x] = 9; 
+                    } else if (bestDir === 'E') { 
+                         if(map[y-1][x]===1) map[y-1][x] = 9; 
+                         else if(map[y+1][x]===1) map[y+1][x] = 8; 
+                    } else if (bestDir === 'N') { 
+                        if(map[y][x+1]===1) map[y][x+1] = 8; 
+                        else if(map[y][x-1]===1) map[y][x-1] = 9; 
+                    } else if (bestDir === 'S') { 
+                        if(map[y][x+1]===1) map[y][x+1] = 9; 
+                        else if(map[y][x-1]===1) map[y][x-1] = 8; 
                     }
                 }
             }
         }
         
-        // Random Blood splatter
         for(let i=0; i<30; i++) {
              let rx = Math.floor(Math.random() * (MAP_WIDTH-2))+1;
              let ry = Math.floor(Math.random() * (MAP_HEIGHT-2))+1;
              if(map[ry][rx] === 1) map[ry][rx] = 5;
         }
 
-        // Lore Papers
         for(let i=0; i<10; i++) {
             let rx = Math.floor(Math.random() * MAP_WIDTH);
             let ry = Math.floor(Math.random() * MAP_HEIGHT);
@@ -593,7 +577,6 @@
             }
         }
 
-        // Sint
         let placedSint = false;
         while(!placedSint) {
             let rx = Math.floor(Math.random() * MAP_WIDTH);
@@ -625,6 +608,7 @@
         
         msgOverlay.classList.add('hidden');
         jumpscareOverlay.style.opacity = 0;
+        noiseOverlay.style.opacity = 0.08;
         initAudio();
         requestAnimationFrame(gameLoop);
     }
@@ -656,7 +640,7 @@
         }
 
         let currentSpeed = keys['shift'] ? RUN_SPEED : MOVE_SPEED;
-        function isBlocking(val) { return val === 1 || (val >= 5 && val <= 9); } // Block arrow walls too
+        function isBlocking(val) { return val === 1 || (val >= 5 && val <= 9); } 
 
         if (keys['w'] || keys['arrowup']) {
             if(!isBlocking(mapLayout[Math.floor(posY)][Math.floor(posX + dirX * currentSpeed * 2)])) posX += dirX * currentSpeed;
@@ -678,17 +662,25 @@
         if(nearbyPaper) { loreTextEl.innerText = nearbyPaper; loreTextEl.style.opacity = 1; } 
         else { loreTextEl.style.opacity = 0; }
 
-        // Hallucinations
-        if (now - lastHallucinationCheck > 500) { 
+        // --- NEW Hallucination Logic (Rush) ---
+        if (now - lastHallucinationCheck > 300) { 
             lastHallucinationCheck = now;
+            // Spawn chance
             if (hallucinations.length < 5 && Math.random() < 0.6) {
-                let spawnDist = 3 + Math.random() * 5;
+                let spawnDist = 4 + Math.random() * 6;
                 let angle = Math.atan2(dirY, dirX) + (Math.random() - 0.5) * 1.5;
                 let hX = posX + Math.cos(angle) * spawnDist;
                 let hY = posY + Math.sin(angle) * spawnDist;
                 if (hX > 1 && hX < MAP_WIDTH-1 && hY > 1 && hY < MAP_HEIGHT-1) {
                     if (mapLayout[Math.floor(hY)][Math.floor(hX)] === 0) {
-                        let piet = { x: hX, y: hY, type: 'piet', active: true, spawnTime: now };
+                        let piet = { 
+                            x: hX, y: hY, 
+                            type: 'piet', 
+                            active: true, 
+                            spawnTime: now,
+                            rushing: false,
+                            rushChecked: false
+                        };
                         hallucinations.push(piet);
                         sprites.push(piet);
                     }
@@ -698,13 +690,53 @@
         
         for(let i = hallucinations.length - 1; i >= 0; i--) {
             let p = hallucinations[i];
-            let distToPiet = Math.hypot(posX - p.x, posY - p.y);
-            if (distToPiet < 2.5 || (now - p.spawnTime > 5000)) {
-                p.active = false; 
-                hallucinations.splice(i, 1);
-                playAmbientSound('vanish');
-                let spriteIndex = sprites.indexOf(p);
-                if (spriteIndex > -1) sprites.splice(spriteIndex, 1);
+            let pdx = posX - p.x;
+            let pdy = posY - p.y;
+            let distToPlayer = Math.sqrt(pdx*pdx + pdy*pdy);
+
+            // --- Rush Logic ---
+            // Calculate if player is looking at Piet
+            let toPietX = p.x - posX;
+            let toPietY = p.y - posY;
+            let toPietLen = Math.hypot(toPietX, toPietY);
+            toPietX /= toPietLen; toPietY /= toPietLen;
+            let dot = dirX * toPietX + dirY * toPietY;
+            
+            // If staring at it (dot > 0.65)
+            if (dot > 0.65 && !p.rushing) {
+                if(Math.random() < 0.05) { // Chance per frame to trigger rush
+                    p.rushing = true;
+                    playAmbientSound('rush_scream');
+                }
+            }
+
+            if(p.rushing) {
+                // Move very fast towards player
+                let rushSpeed = 0.25;
+                p.x += (pdx / distToPlayer) * rushSpeed;
+                p.y += (pdy / distToPlayer) * rushSpeed;
+                
+                // Impact
+                if(distToPlayer < 0.8) {
+                    p.active = false;
+                    hallucinations.splice(i, 1);
+                    playAmbientSound('jumpscare_minor');
+                    let spriteIndex = sprites.indexOf(p);
+                    if (spriteIndex > -1) sprites.splice(spriteIndex, 1);
+                    // Glitch effect
+                    noiseOverlay.style.opacity = 0.9;
+                    setTimeout(() => { noiseOverlay.style.opacity = 0.08; }, 200);
+                    continue; 
+                }
+            } else {
+                // Normal vanish logic
+                if (distToPlayer < 2.5 || (now - p.spawnTime > 5000)) {
+                    p.active = false; 
+                    hallucinations.splice(i, 1);
+                    playAmbientSound('vanish');
+                    let spriteIndex = sprites.indexOf(p);
+                    if (spriteIndex > -1) sprites.splice(spriteIndex, 1);
+                }
             }
         }
 
@@ -719,7 +751,7 @@
         
         if (frameCount % 120 === 0) {
             let stuck = Math.hypot(sint.x - sint.lastX, sint.y - sint.lastY) < 0.1;
-            let tooFar = dist > 30; // Increased spawn dist threshold for bigger map
+            let tooFar = dist > 30; 
             if (stuck || tooFar) {
                  for(let i=0; i<10; i++) {
                      let angle = Math.atan2(dirY, dirX) + Math.PI + (Math.random()-0.5); 
@@ -749,19 +781,19 @@
 
         sintProximity = Math.max(0, 1 - (dist / 12)); 
         
-        // --- VISUAL HINTS UPDATE ---
-        // Red overlay intensity
         let dangerAlpha = 0;
         if (sintProximity > 0.3) dangerAlpha = (sintProximity - 0.3) * 1.5; 
         if (dangerAlpha > 0.8) dangerAlpha = 0.8;
         dangerOverlay.style.boxShadow = `inset 0 0 ${dangerAlpha * 100}px #f00`;
         
-        // Static noise intensity
-        noiseOverlay.style.opacity = 0.08 + (sintProximity * 0.3); // Scale noise with danger
+        // Only modulate opacity if NOT currently glitched by jumpscare
+        if(noiseOverlay.style.opacity < 0.8) {
+             noiseOverlay.style.opacity = 0.08 + (sintProximity * 0.3);
+        }
 
         updateSound(now);
 
-        if (dist < 0.4) endGame(false);
+        if (dist < 0.8) endGame(false); // Hitbox
         sprites.forEach(s => {
             if (!s.active || s.type !== 'door') return;
             let d = Math.sqrt((posX - s.x)**2 + (posY - s.y)**2);
@@ -790,7 +822,31 @@
         osc.connect(gain);
         gain.connect(audioCtx.destination);
         
-        if (type === 'vanish') {
+        if (type === 'rush_scream') {
+            // Rising screech
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.3);
+            gain.gain.setValueAtTime(0.0, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.3, audioCtx.currentTime + 0.1);
+            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.3);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.3);
+        } else if (type === 'jumpscare_minor') {
+            // Burst noise
+            const bufferSize = audioCtx.sampleRate * 0.2;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+            const noise = audioCtx.createBufferSource();
+            noise.buffer = buffer;
+            const noiseGain = audioCtx.createGain();
+            noise.connect(noiseGain);
+            noiseGain.connect(audioCtx.destination);
+            noiseGain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+            noiseGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+            noise.start();
+        } else if (type === 'vanish') {
             const bufferSize = audioCtx.sampleRate * 0.5;
             const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
             const data = buffer.getChannelData(0);
@@ -901,14 +957,11 @@
 
             ctx.drawImage(tex, texX, 0, 1, texHeight, x, drawStart, 1, drawEnd - drawStart);
             
-            // Flashlight Logic
             let lightIntensity = 1.0 / (perpWallDist * 0.3); 
             if (lightIntensity > 1) lightIntensity = 1;
-            
             let screenDist = Math.abs(x - SCREEN_WIDTH / 2) / (SCREEN_WIDTH / 2);
             let beam = 1.0 - Math.pow(screenDist, 2); 
             lightIntensity *= beam;
-
             if(perpWallDist > 8) lightIntensity *= 0.5;
             if (side === 1) lightIntensity *= 0.7;
 
