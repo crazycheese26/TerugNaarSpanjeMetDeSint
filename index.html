@@ -25,14 +25,13 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            cursor: crosshair; /* Hint at mouse control */
+            cursor: crosshair;
         }
 
         canvas {
             image-rendering: pixelated; 
             width: 100%;
             height: 100%;
-            /* Verbeterde zichtbaarheid */
             filter: contrast(1.1) brightness(1.2) sepia(0.2) grayscale(0.1); 
             transition: filter 0.2s;
         }
@@ -217,8 +216,7 @@
             <div id="score-display">VIND DE DEUR</div>
         </div>
         <div id="lore-text"></div>
-        <!-- Updated hints -->
-        <div id="controls-hint" style="color:#444; font-family: monospace;">W/S: Move | Mouse: Look | Shift: Run</div>
+        <div id="controls-hint" style="color:#444; font-family: monospace;">W/S: Move | A/D: Strafe | Mouse: Look | Shift: Run</div>
     </div>
 
     <div id="debug-log"></div>
@@ -232,23 +230,19 @@
 </div>
 
 <script>
-    // --- Configuration ---
     const MAP_WIDTH = 60;
     const MAP_HEIGHT = 50;
     const SCREEN_WIDTH = 320; 
     const SCREEN_HEIGHT = 180;
     
-    // Converted to Units Per Second (approx based on previous 60fps values)
-    const MOVE_SPEED = 3.6; // Was 0.06 per frame * 60
-    const RUN_SPEED = 6.6;  // Was 0.11 per frame * 60
+    const MOVE_SPEED = 3.6;
+    const RUN_SPEED = 6.6;
     const MOUSE_SENSITIVITY = 0.003; 
     
-    // --- Audio ---
     let audioCtx;
     let nextAmbientSoundTime = 0;
     let nextHeartbeatTime = 0;
     
-    // --- Game State ---
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d', { alpha: false }); 
     const msgOverlay = document.getElementById('message-overlay');
@@ -259,14 +253,13 @@
     const noiseOverlay = document.querySelector('.noise');
     const vignetteEl = document.getElementById('vignette');
     const debugLog = document.getElementById('debug-log');
-    const gameContainer = document.getElementById('game-container');
 
     let gameRunning = false;
     let keys = {};
     let sintProximity = 0;
     let zBuffer = []; 
     let startTime = 0; 
-    let lastTime = 0; // For Delta Time
+    let lastTime = 0;
     let frameCount = 0;
     
     let hallucinations = [];
@@ -275,12 +268,10 @@
     let mapLayout = [];
     let distMap = []; 
 
-    // Player
     let posX = 0, posY = 0; 
     let dirX = -1, dirY = 0; 
     let planeX = 0, planeY = 0.66; 
 
-    // Entities
     let sint = { x: 0, y: 0, active: true, lastX: 0, lastY: 0 };
     let sprites = []; 
     
@@ -294,7 +285,6 @@
         "Er is bloed aan de muren."
     ];
 
-    // Textures
     const texWidth = 64;
     const texHeight = 64;
     let textures = {}; 
@@ -304,18 +294,15 @@
         console.error(msg);
     }
 
-    // --- Texture Generation ---
     function generateTextures() {
         function createTexture(color1, color2, type, variant) {
             const c = document.createElement('canvas');
             c.width = texWidth; c.height = texHeight;
             const cx = c.getContext('2d');
             
-            // Lighter base for better visibility
             cx.fillStyle = type.includes('wall') ? '#333' : color1; 
             cx.fillRect(0,0,64,64);
             
-            // Heavy noise
             for(let i=0; i<400; i++) {
                 cx.fillStyle = Math.random()>0.5 ? '#000' : '#111';
                 cx.globalAlpha = 0.3;
@@ -339,7 +326,7 @@
                 
                 if (variant === 'arrow_left') {
                     cx.shadowColor = "#f00"; cx.shadowBlur = 10;
-                    cx.strokeStyle = '#a00'; cx.lineWidth = 6; // Brighter arrow
+                    cx.strokeStyle = '#a00'; cx.lineWidth = 6;
                     cx.beginPath(); cx.moveTo(50, 32); cx.lineTo(15, 32); cx.lineTo(30, 15); cx.moveTo(15, 32); cx.lineTo(30, 49); cx.stroke();
                     cx.shadowBlur = 0;
                 } else if (variant === 'arrow_right') {
@@ -352,7 +339,7 @@
             return c;
         }
 
-        function createSprite(type) {
+        function createSprite(type, variant) {
             const c = document.createElement('canvas');
             c.width = 128; c.height = 128;
             const cx = c.getContext('2d');
@@ -391,33 +378,64 @@
                 cx.shadowBlur = 0;
 
             } else if (type === 'piet') {
-                cx.fillStyle = '#151020'; 
-                cx.beginPath(); cx.moveTo(64, 128); cx.lineTo(30, 128); cx.lineTo(40, 50); cx.lineTo(88, 50); cx.lineTo(98, 128); cx.fill();
-                cx.strokeStyle = '#ccc'; cx.lineWidth = 2;
-                cx.beginPath(); cx.moveTo(40, 50); cx.lineTo(50, 60); cx.lineTo(64, 50); cx.lineTo(78, 60); cx.lineTo(88, 50); cx.stroke();
-                cx.save();
-                cx.translate(64, 35);
-                cx.rotate(0.15); 
-                cx.fillStyle = '#050505'; 
-                cx.beginPath(); cx.ellipse(0, 0, 20, 28, 0, 0, Math.PI*2); cx.fill();
-                cx.fillStyle = '#301030';
-                cx.beginPath(); cx.ellipse(0, -20, 25, 10, 0.2, 0, Math.PI*2); cx.fill();
-                cx.strokeStyle = '#600'; cx.lineWidth=2; cx.beginPath(); cx.moveTo(10, -25); cx.lineTo(25, -45); cx.stroke(); // Horn/Feather
-                cx.fillStyle = '#000'; 
-                cx.beginPath(); cx.arc(-8, -2, 6, 0, Math.PI*2); cx.fill();
-                cx.beginPath(); cx.arc(8, -2, 6, 0, Math.PI*2); cx.fill();
-                cx.fillStyle = '#fff';
-                cx.shadowColor = '#fff'; cx.shadowBlur = 4;
-                cx.beginPath(); cx.arc(-8, -1, 1.5, 0, Math.PI*2); cx.fill();
-                cx.beginPath(); cx.arc(8, -3, 1.5, 0, Math.PI*2); cx.fill(); 
-                cx.shadowBlur = 0;
-                cx.strokeStyle = '#aaa'; cx.lineWidth = 2;
-                cx.beginPath(); cx.arc(0, 10, 12, 0, Math.PI); cx.stroke();
-                cx.lineWidth = 1;
-                cx.beginPath(); cx.moveTo(0, 10); cx.lineTo(0, 22); cx.stroke();
-                cx.beginPath(); cx.moveTo(-6, 11); cx.lineTo(-6, 21); cx.stroke();
-                cx.beginPath(); cx.moveTo(6, 11); cx.lineTo(6, 21); cx.stroke();
-                cx.restore();
+                if (variant === 0) {
+                    // --- The Broken Marionette (New) ---
+                    cx.fillStyle = '#151020'; 
+                    cx.beginPath(); cx.moveTo(64, 128); cx.lineTo(30, 128); cx.lineTo(40, 50); cx.lineTo(88, 50); cx.lineTo(98, 128); cx.fill();
+                    cx.strokeStyle = '#ccc'; cx.lineWidth = 2;
+                    cx.beginPath(); cx.moveTo(40, 50); cx.lineTo(50, 60); cx.lineTo(64, 50); cx.lineTo(78, 60); cx.lineTo(88, 50); cx.stroke();
+                    cx.save();
+                    cx.translate(64, 35);
+                    cx.rotate(0.15); 
+                    cx.fillStyle = '#050505'; 
+                    cx.beginPath(); cx.ellipse(0, 0, 20, 28, 0, 0, Math.PI*2); cx.fill();
+                    cx.fillStyle = '#301030';
+                    cx.beginPath(); cx.ellipse(0, -20, 25, 10, 0.2, 0, Math.PI*2); cx.fill();
+                    cx.strokeStyle = '#600'; cx.lineWidth=2; cx.beginPath(); cx.moveTo(10, -25); cx.lineTo(25, -45); cx.stroke();
+                    cx.fillStyle = '#000'; 
+                    cx.beginPath(); cx.arc(-8, -2, 6, 0, Math.PI*2); cx.fill();
+                    cx.beginPath(); cx.arc(8, -2, 6, 0, Math.PI*2); cx.fill();
+                    cx.fillStyle = '#fff';
+                    cx.shadowColor = '#fff'; cx.shadowBlur = 4;
+                    cx.beginPath(); cx.arc(-8, -1, 1.5, 0, Math.PI*2); cx.fill();
+                    cx.beginPath(); cx.arc(8, -3, 1.5, 0, Math.PI*2); cx.fill(); 
+                    cx.shadowBlur = 0;
+                    cx.strokeStyle = '#aaa'; cx.lineWidth = 2;
+                    cx.beginPath(); cx.arc(0, 10, 12, 0, Math.PI); cx.stroke();
+                    cx.lineWidth = 1;
+                    cx.beginPath(); cx.moveTo(0, 10); cx.lineTo(0, 22); cx.stroke();
+                    cx.beginPath(); cx.moveTo(-6, 11); cx.lineTo(-6, 21); cx.stroke();
+                    cx.beginPath(); cx.moveTo(6, 11); cx.lineTo(6, 21); cx.stroke();
+                    cx.restore();
+                } else {
+                    // --- Undead Servant (Old Style) ---
+                    cx.fillStyle = '#1a0d33'; // Purple/Blue velvet
+                    cx.beginPath(); cx.moveTo(35, 128); cx.lineTo(45, 50); cx.lineTo(83, 50); cx.lineTo(93, 128); cx.fill();
+                    
+                    // Collar
+                    cx.fillStyle = '#eee';
+                    cx.beginPath(); cx.ellipse(64, 50, 25, 10, 0, 0, Math.PI*2); cx.fill();
+                    
+                    // Head
+                    cx.fillStyle = '#222'; 
+                    cx.beginPath(); cx.arc(64, 30, 20, 0, Math.PI*2); cx.fill();
+                    
+                    // Beret
+                    cx.fillStyle = '#411';
+                    cx.beginPath(); cx.ellipse(64, 15, 28, 12, -0.2, 0, Math.PI*2); cx.fill();
+                    cx.strokeStyle = '#d4af37'; cx.lineWidth = 2;
+                    cx.beginPath(); cx.moveTo(70, 15); cx.lineTo(85, -5); cx.stroke(); // Feather
+                    
+                    // Eyes - White glowing
+                    cx.fillStyle = '#fff'; cx.shadowColor = '#fff'; cx.shadowBlur = 5;
+                    cx.beginPath(); cx.arc(58, 28, 3, 0, Math.PI*2); cx.fill();
+                    cx.beginPath(); cx.arc(70, 28, 3, 0, Math.PI*2); cx.fill();
+                    cx.shadowBlur = 0;
+                    
+                    // Smile
+                    cx.strokeStyle = '#a00'; cx.lineWidth = 2;
+                    cx.beginPath(); cx.arc(64, 38, 8, 0, Math.PI); cx.stroke();
+                }
             }
             return c;
         }
@@ -437,7 +455,8 @@
         textures.door = createSprite('door');
         textures.paper = createSprite('paper');
         textures.sint = createSprite('sint');
-        textures.piet = createSprite('piet');
+        textures.piet_new = createSprite('piet', 0);
+        textures.piet_old = createSprite('piet', 1);
     }
 
     function createJumpscare() {
@@ -455,7 +474,6 @@
         return c;
     }
 
-    // --- Map Generation ---
     function generateMap() {
         let map = [];
         distMap = [];
@@ -531,7 +549,6 @@
              sprites.push({ x: doorX+0.5, y: doorY+0.5, type: 'door', active: true });
         }
 
-        // BFS for distances
         let q = [{x: doorX, y: doorY, dist: 0}];
         distMap[doorY][doorX] = 0;
         while(q.length > 0) {
@@ -549,7 +566,6 @@
             }
         }
 
-        // Decor
         for(let i=0; i<20; i++) {
              let rx = Math.floor(Math.random() * (MAP_WIDTH-2))+1;
              let ry = Math.floor(Math.random() * (MAP_HEIGHT-2))+1;
@@ -576,17 +592,13 @@
             }
         }
 
-        // FORCE SAFE SPAWN ZONE
         map[1][1] = 0; map[1][2] = 0; map[2][1] = 0;
         
         return map;
     }
 
-    // --- MOUSE CONTROL ---
     function updateRotation(e) {
         if (document.pointerLockElement === canvas) {
-            // Negative movementX = left = rotate counter-clockwise (positive radians in standard trig? 
-            // Previous code: 'a' key -> ROT_SPEED (positive). So left = positive.
             let rot = -e.movementX * MOUSE_SENSITIVITY; 
             
             let oldDirX = dirX;
@@ -613,7 +625,7 @@
             
             gameRunning = true;
             startTime = Date.now();
-            lastTime = Date.now(); // Init Delta Time
+            lastTime = Date.now();
             nextAmbientSoundTime = Date.now() + 2000;
             nextHeartbeatTime = Date.now();
             
@@ -622,12 +634,10 @@
             noiseOverlay.style.opacity = 0.1;
             initAudio();
             
-            // Pointer Lock Setup
             canvas.requestPointerLock = canvas.requestPointerLock || canvas.mozRequestPointerLock;
             
             document.addEventListener('mousemove', updateRotation, false);
             
-            // Re-lock if clicked during game
             canvas.onclick = function() {
                 if(gameRunning) canvas.requestPointerLock();
             };
@@ -647,13 +657,9 @@
         canvas.requestPointerLock();
     });
 
-    // Accept dt (Delta Time in seconds)
     function updateGame(dt) {
         let now = Date.now();
         frameCount++;
-
-        // A/D keys removed for rotation, only Mouse used.
-        // Keeping movement logic W/S.
 
         let currentSpeed = (keys['shift'] ? RUN_SPEED : MOVE_SPEED) * dt;
         function isBlocking(val) { return val !== 0; } 
@@ -665,6 +671,16 @@
         if (keys['s'] || keys['arrowdown']) {
             if(!isBlocking(mapLayout[Math.floor(posY)][Math.floor(posX - dirX * currentSpeed * 2)])) posX -= dirX * currentSpeed;
             if(!isBlocking(mapLayout[Math.floor(posY - dirY * currentSpeed * 2)][Math.floor(posX)])) posY -= dirY * currentSpeed;
+        }
+        
+        if (keys['a'] || keys['arrowleft']) {
+             if(!isBlocking(mapLayout[Math.floor(posY)][Math.floor(posX - dirY * currentSpeed * 2)])) posX -= dirY * currentSpeed;
+             if(!isBlocking(mapLayout[Math.floor(posY + dirX * currentSpeed * 2)][Math.floor(posX)])) posY += dirX * currentSpeed;
+        }
+        
+        if (keys['d'] || keys['arrowright']) {
+             if(!isBlocking(mapLayout[Math.floor(posY)][Math.floor(posX + dirY * currentSpeed * 2)])) posX += dirY * currentSpeed;
+             if(!isBlocking(mapLayout[Math.floor(posY - dirX * currentSpeed * 2)][Math.floor(posX)])) posY -= dirX * currentSpeed;
         }
 
         if (isBlocking(mapLayout[Math.floor(posY)][Math.floor(posX)])) {
@@ -683,20 +699,19 @@
 
         if (now - lastHallucinationCheck > 300) { 
             lastHallucinationCheck = now;
-            // Use frame independent probability approx
-            if (hallucinations.length < 4 && Math.random() < (0.6 * dt * 60)) { // Scale prob by dt
+            if (hallucinations.length < 4 && Math.random() < (0.6 * dt * 60)) { 
                 let spawnDist = 5 + Math.random() * 8;
                 let angle = Math.atan2(dirY, dirX) + (Math.random() - 0.5) * 2.0;
                 let hX = posX + Math.cos(angle) * spawnDist;
                 let hY = posY + Math.sin(angle) * spawnDist;
                 if (hX > 1 && hX < MAP_WIDTH-1 && hY > 1 && hY < MAP_HEIGHT-1) {
                     if (mapLayout[Math.floor(hY)][Math.floor(hX)] === 0) {
+                        let pietType = Math.random() > 0.5 ? 'piet_new' : 'piet_old';
                         let piet = { 
                             x: hX, y: hY, 
-                            type: 'piet', 
+                            type: pietType, // Store specific type
                             active: true, 
-                            spawnTime: now,
-                            rushing: false
+                            spawnTime: now
                         };
                         hallucinations.push(piet);
                         sprites.push(piet);
@@ -711,62 +726,33 @@
             let pdy = posY - p.y;
             let distToPlayer = Math.sqrt(pdx*pdx + pdy*pdy);
 
-            let toPietX = p.x - posX;
-            let toPietY = p.y - posY;
-            let toPietLen = Math.hypot(toPietX, toPietY);
-            toPietX /= toPietLen; toPietY /= toPietLen;
-            let dot = dirX * toPietX + dirY * toPietY;
-            
-            // Adjust rush probability for dt
-            if (dot > 0.8 && !p.rushing) {
-                if(Math.random() < (0.005 * dt * 60)) { 
-                    p.rushing = true;
-                    playAmbientSound('rush_scream');
-                }
-            }
-
-            if(p.rushing) {
-                let rushSpeed = 16.0 * dt; // approx 0.28 * 60
-                p.x += (pdx / distToPlayer) * rushSpeed;
-                p.y += (pdy / distToPlayer) * rushSpeed;
-                
-                if(distToPlayer < 0.6) {
-                    p.active = false;
-                    hallucinations.splice(i, 1);
-                    playAmbientSound('jumpscare_minor');
-                    let spriteIndex = sprites.indexOf(p);
-                    if (spriteIndex > -1) sprites.splice(spriteIndex, 1);
-                    noiseOverlay.style.opacity = 1.0;
-                    setTimeout(() => { noiseOverlay.style.opacity = 0.1; }, 200);
-                    continue; 
-                }
-            } else {
-                if (distToPlayer < 3.0 || (now - p.spawnTime > 8000)) {
-                    p.active = false; 
-                    hallucinations.splice(i, 1);
-                    let spriteIndex = sprites.indexOf(p);
-                    if (spriteIndex > -1) sprites.splice(spriteIndex, 1);
-                }
+            if (distToPlayer < 3.0 || (now - p.spawnTime > 8000)) {
+                p.active = false; 
+                hallucinations.splice(i, 1);
+                let spriteIndex = sprites.indexOf(p);
+                if (spriteIndex > -1) sprites.splice(spriteIndex, 1);
             }
         }
 
         let timeAlive = (now - startTime) / 1000;
-        let sintSpeed = (2.5 + (timeAlive * 0.03)) * dt; // Converted base speeds
-        if(sintSpeed > (6.3 * dt)) sintSpeed = 6.3 * dt;
+        // INCREASED SINT SPEED
+        let sintSpeed = (3.0 + (timeAlive * 0.04)) * dt; 
+        if(sintSpeed > (7.0 * dt)) sintSpeed = 7.0 * dt;
 
         let dx = posX - sint.x;
         let dy = posY - sint.y;
         let dist = Math.sqrt(dx*dx + dy*dy);
         
-        // Anti-stuck Logic (keep frame based or time based? Time based is better)
-        // Just use a timer check instead of frameCount % 120
+        // BETTER TELEPORT / CATCHUP
         if (Math.floor(now / 2000) > Math.floor((now - dt*1000)/2000)) {
              let stuck = Math.hypot(sint.x - sint.lastX, sint.y - sint.lastY) < 0.1;
-             let tooFar = dist > 35; 
+             // Reduced max distance to 25 so he teleports closer
+             let tooFar = dist > 25; 
              if (stuck || tooFar) {
-                 for(let i=0; i<10; i++) {
+                 for(let i=0; i<20; i++) {
+                     // Try to spawn BEHIND or AHEAD within 10-15 units
                      let angle = Math.atan2(dirY, dirX) + Math.PI + (Math.random()-0.5); 
-                     let d = 8 + Math.random() * 6;
+                     let d = 10 + Math.random() * 5;
                      let tx = posX + Math.cos(angle) * d;
                      let ty = posY + Math.sin(angle) * d;
                      if(tx > 1 && tx < MAP_WIDTH-1 && ty > 1 && ty < MAP_HEIGHT-1) {
@@ -1042,7 +1028,8 @@
                 let spriteHeight = Math.abs(Math.floor(SCREEN_HEIGHT / transformY));
                 
                 let animOffset = 0;
-                if (sprite.type === 'piet') animOffset = Math.sin(frameCount * 0.05) * 5;
+                // Correct animation for Piet (using type prefix)
+                if (sprite.type && sprite.type.startsWith('piet')) animOffset = Math.sin(frameCount * 0.05) * 5;
                 if (sprite.type === 'paper') animOffset = Math.sin(frameCount * 0.1) * 3 + 60; 
 
                 let drawStartY = -spriteHeight / 2 + SCREEN_HEIGHT / 2 + animOffset / transformY;
@@ -1054,7 +1041,8 @@
                 let tex;
                 if (sprite.type === 'door') tex = textures.door;
                 else if (sprite.type === 'sint') tex = textures.sint;
-                else if (sprite.type === 'piet') tex = textures.piet;
+                else if (sprite.type === 'piet_new') tex = textures.piet_new;
+                else if (sprite.type === 'piet_old') tex = textures.piet_old;
                 else if (sprite.type === 'paper') tex = textures.paper;
 
                 for (let stripe = Math.floor(drawStartX); stripe < Math.floor(drawEndX); stripe++) {
@@ -1091,7 +1079,6 @@
         if(!gameRunning) return;
         
         let now = Date.now();
-        // Calc delta time in seconds
         let dt = (now - lastTime) / 1000.0;
         lastTime = now;
         
@@ -1102,7 +1089,7 @@
 
     function endGame(win) {
         gameRunning = false;
-        document.exitPointerLock(); // Free mouse
+        document.exitPointerLock(); 
         if(!win) {
             playAmbientSound('scream_end');
             jumpscareOverlay.style.opacity = 1;
