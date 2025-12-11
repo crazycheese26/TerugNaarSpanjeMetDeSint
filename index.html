@@ -25,13 +25,14 @@
             display: flex;
             justify-content: center;
             align-items: center;
+            cursor: crosshair; /* Hint at mouse control */
         }
 
         canvas {
             image-rendering: pixelated; 
             width: 100%;
             height: 100%;
-            /* Verbeterde zichtbaarheid: minder contrast, minder donker */
+            /* Verbeterde zichtbaarheid */
             filter: contrast(1.1) brightness(1.2) sepia(0.2) grayscale(0.1); 
             transition: filter 0.2s;
         }
@@ -51,7 +52,7 @@
             background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIj48ZmlsdGVyIGlkPSJub2lzZSI+PGZlVHVyYnVsZW5jZSB0eXBlPSJmcmFjdGFsTm9pc2UiIGJhc2VGcmVxdWVuY3k9IjAuNjUiIG51bU9jdGF2ZXM9IjMiIHN0aXRjaFRpbGVzPSJzdGl0Y2giLz48L2ZpbHRlcj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWx0ZXI9InVybCgjbm9pc2UpIiBvcGFjaXR5PSIwLjA4Ii8+PC9zdmc+');
             pointer-events: none;
             z-index: 51;
-            opacity: 0.08; /* Iets minder ruis voor beter zicht */
+            opacity: 0.08; 
             animation: noiseAnim 0.2s infinite;
             transition: opacity 0.1s;
         }
@@ -173,7 +174,6 @@
         #vignette {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            /* Iets helderder in het midden zodat het geen zwart gat is */
             background: radial-gradient(circle at center, rgba(0,0,0,0) 25%, rgba(0,0,0,0.8) 50%, black 80%);
             pointer-events: none;
             z-index: 55;
@@ -217,7 +217,8 @@
             <div id="score-display">VIND DE DEUR</div>
         </div>
         <div id="lore-text"></div>
-        <div id="controls-hint" style="color:#444; font-family: monospace;">WASD / Shift</div>
+        <!-- Updated hints -->
+        <div id="controls-hint" style="color:#444; font-family: monospace;">W/S: Move | Mouse: Look | Shift: Run</div>
     </div>
 
     <div id="debug-log"></div>
@@ -237,9 +238,10 @@
     const SCREEN_WIDTH = 320; 
     const SCREEN_HEIGHT = 180;
     
-    const MOVE_SPEED = 0.06;
-    const RUN_SPEED = 0.11;
-    const ROT_SPEED = 0.09; // Increased significantly for faster turning
+    // Converted to Units Per Second (approx based on previous 60fps values)
+    const MOVE_SPEED = 3.6; // Was 0.06 per frame * 60
+    const RUN_SPEED = 6.6;  // Was 0.11 per frame * 60
+    const MOUSE_SENSITIVITY = 0.003; 
     
     // --- Audio ---
     let audioCtx;
@@ -257,12 +259,14 @@
     const noiseOverlay = document.querySelector('.noise');
     const vignetteEl = document.getElementById('vignette');
     const debugLog = document.getElementById('debug-log');
+    const gameContainer = document.getElementById('game-container');
 
     let gameRunning = false;
     let keys = {};
     let sintProximity = 0;
     let zBuffer = []; 
     let startTime = 0; 
+    let lastTime = 0; // For Delta Time
     let frameCount = 0;
     
     let hallucinations = [];
@@ -425,7 +429,6 @@
         jumpscareOverlay.innerHTML = '';
         jumpscareOverlay.appendChild(jumpImg);
 
-        // Brighten up the walls slightly
         textures.wall = createTexture('#444', '#2a2a2a', 'wall', 0); 
         textures.wall_bloody = createTexture('#444', '#2a2a2a', 'wall_bloody', 'random');
         textures.arrow_left = createTexture('#444', '#2a2a2a', 'wall', 'arrow_left');
@@ -574,10 +577,25 @@
         }
 
         // FORCE SAFE SPAWN ZONE
-        // Ensure (1,1) and neighbors are EMPTY so player isn't in wall
         map[1][1] = 0; map[1][2] = 0; map[2][1] = 0;
         
         return map;
+    }
+
+    // --- MOUSE CONTROL ---
+    function updateRotation(e) {
+        if (document.pointerLockElement === canvas) {
+            // Negative movementX = left = rotate counter-clockwise (positive radians in standard trig? 
+            // Previous code: 'a' key -> ROT_SPEED (positive). So left = positive.
+            let rot = -e.movementX * MOUSE_SENSITIVITY; 
+            
+            let oldDirX = dirX;
+            dirX = dirX * Math.cos(rot) - dirY * Math.sin(rot);
+            dirY = oldDirX * Math.sin(rot) + dirY * Math.cos(rot);
+            let oldPlaneX = planeX;
+            planeX = planeX * Math.cos(rot) - planeY * Math.sin(rot);
+            planeY = oldPlaneX * Math.sin(rot) + planeY * Math.cos(rot);
+        }
     }
 
     function initGame() {
@@ -589,13 +607,13 @@
             hallucinations = [];
             mapLayout = generateMap();
             
-            // Double check spawn
             posX = 1.5; posY = 1.5;
             dirX = -1; dirY = 0;
             planeX = 0; planeY = 0.66;
             
             gameRunning = true;
             startTime = Date.now();
+            lastTime = Date.now(); // Init Delta Time
             nextAmbientSoundTime = Date.now() + 2000;
             nextHeartbeatTime = Date.now();
             
@@ -604,7 +622,16 @@
             noiseOverlay.style.opacity = 0.1;
             initAudio();
             
-            // Start loop safely
+            // Pointer Lock Setup
+            canvas.requestPointerLock = canvas.requestPointerLock || canvas.mozRequestPointerLock;
+            
+            document.addEventListener('mousemove', updateRotation, false);
+            
+            // Re-lock if clicked during game
+            canvas.onclick = function() {
+                if(gameRunning) canvas.requestPointerLock();
+            };
+
             requestAnimationFrame(gameLoop);
         } catch(e) {
             logError("Init Error: " + e.message);
@@ -613,30 +640,22 @@
 
     window.addEventListener('keydown', (e) => { keys[e.key.toLowerCase()] = true; if(e.shiftKey) keys['shift'] = true; });
     window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; if(!e.shiftKey) keys['shift'] = false; });
-    startBtn.addEventListener('click', () => { initAudio(); initGame(); });
+    
+    startBtn.addEventListener('click', () => { 
+        initAudio(); 
+        initGame(); 
+        canvas.requestPointerLock();
+    });
 
-    function updateGame() {
+    // Accept dt (Delta Time in seconds)
+    function updateGame(dt) {
         let now = Date.now();
         frameCount++;
 
-        if (keys['d'] || keys['arrowright']) {
-            let oldDirX = dirX;
-            dirX = dirX * Math.cos(-ROT_SPEED) - dirY * Math.sin(-ROT_SPEED);
-            dirY = oldDirX * Math.sin(-ROT_SPEED) + dirY * Math.cos(-ROT_SPEED);
-            let oldPlaneX = planeX;
-            planeX = planeX * Math.cos(-ROT_SPEED) - planeY * Math.sin(-ROT_SPEED);
-            planeY = oldPlaneX * Math.sin(-ROT_SPEED) + planeY * Math.cos(-ROT_SPEED);
-        }
-        if (keys['a'] || keys['arrowleft']) {
-            let oldDirX = dirX;
-            dirX = dirX * Math.cos(ROT_SPEED) - dirY * Math.sin(ROT_SPEED);
-            dirY = oldDirX * Math.sin(ROT_SPEED) + dirY * Math.cos(ROT_SPEED);
-            let oldPlaneX = planeX;
-            planeX = planeX * Math.cos(ROT_SPEED) - planeY * Math.sin(ROT_SPEED);
-            planeY = oldPlaneX * Math.sin(ROT_SPEED) + planeY * Math.cos(ROT_SPEED);
-        }
+        // A/D keys removed for rotation, only Mouse used.
+        // Keeping movement logic W/S.
 
-        let currentSpeed = keys['shift'] ? RUN_SPEED : MOVE_SPEED;
+        let currentSpeed = (keys['shift'] ? RUN_SPEED : MOVE_SPEED) * dt;
         function isBlocking(val) { return val !== 0; } 
 
         if (keys['w'] || keys['arrowup']) {
@@ -664,7 +683,8 @@
 
         if (now - lastHallucinationCheck > 300) { 
             lastHallucinationCheck = now;
-            if (hallucinations.length < 4 && Math.random() < 0.6) {
+            // Use frame independent probability approx
+            if (hallucinations.length < 4 && Math.random() < (0.6 * dt * 60)) { // Scale prob by dt
                 let spawnDist = 5 + Math.random() * 8;
                 let angle = Math.atan2(dirY, dirX) + (Math.random() - 0.5) * 2.0;
                 let hX = posX + Math.cos(angle) * spawnDist;
@@ -697,15 +717,16 @@
             toPietX /= toPietLen; toPietY /= toPietLen;
             let dot = dirX * toPietX + dirY * toPietY;
             
+            // Adjust rush probability for dt
             if (dot > 0.8 && !p.rushing) {
-                if(Math.random() < 0.005) { 
+                if(Math.random() < (0.005 * dt * 60)) { 
                     p.rushing = true;
                     playAmbientSound('rush_scream');
                 }
             }
 
             if(p.rushing) {
-                let rushSpeed = 0.28;
+                let rushSpeed = 16.0 * dt; // approx 0.28 * 60
                 p.x += (pdx / distToPlayer) * rushSpeed;
                 p.y += (pdy / distToPlayer) * rushSpeed;
                 
@@ -730,17 +751,19 @@
         }
 
         let timeAlive = (now - startTime) / 1000;
-        let sintSpeed = 0.042 + (timeAlive * 0.0005);
-        if(sintSpeed > 0.105) sintSpeed = 0.105;
+        let sintSpeed = (2.5 + (timeAlive * 0.03)) * dt; // Converted base speeds
+        if(sintSpeed > (6.3 * dt)) sintSpeed = 6.3 * dt;
 
         let dx = posX - sint.x;
         let dy = posY - sint.y;
         let dist = Math.sqrt(dx*dx + dy*dy);
         
-        if (frameCount % 120 === 0) {
-            let stuck = Math.hypot(sint.x - sint.lastX, sint.y - sint.lastY) < 0.1;
-            let tooFar = dist > 35; 
-            if (stuck || tooFar) {
+        // Anti-stuck Logic (keep frame based or time based? Time based is better)
+        // Just use a timer check instead of frameCount % 120
+        if (Math.floor(now / 2000) > Math.floor((now - dt*1000)/2000)) {
+             let stuck = Math.hypot(sint.x - sint.lastX, sint.y - sint.lastY) < 0.1;
+             let tooFar = dist > 35; 
+             if (stuck || tooFar) {
                  for(let i=0; i<10; i++) {
                      let angle = Math.atan2(dirY, dirX) + Math.PI + (Math.random()-0.5); 
                      let d = 8 + Math.random() * 6;
@@ -945,11 +968,9 @@
                 let tex = textures.wall;
                 if(wallType === 5) tex = textures.wall_bloody;
 
-                // Deterministic random for wall decorations
-                // Only a tiny fraction of walls get arrows
                 let wallRandom = Math.abs(Math.sin(mapX * 12.9898 + mapY * 78.233) * 43758.5453) % 1;
 
-                if(wallRandom < 0.0015) { // 0.15% chance
+                if(wallRandom < 0.0015) { 
                     let adjX = mapX, adjY = mapY;
                     if(side === 0) adjX -= stepX;
                     else adjY -= stepY;
@@ -983,7 +1004,7 @@
                 let lightIntensity = 1.0 / (perpWallDist * 0.4); 
                 if (lightIntensity > 1) lightIntensity = 1;
                 
-                let beamWidth = SCREEN_WIDTH / 1.5; // Wider beam
+                let beamWidth = SCREEN_WIDTH / 1.5; 
                 if(sintProximity > 0.3) beamWidth = SCREEN_WIDTH / 2.5;
 
                 let screenDist = Math.abs(x - SCREEN_WIDTH / 2) / (beamWidth);
@@ -991,7 +1012,6 @@
                 if(beam < 0) beam = 0;
                 
                 lightIntensity *= beam;
-                // Add base ambient light so nothing is pure black
                 lightIntensity += 0.05; 
                 
                 if(perpWallDist > 7) lightIntensity *= 0.3; 
@@ -1049,7 +1069,6 @@
                         let screenDist = Math.abs(stripe - SCREEN_WIDTH / 2) / (SCREEN_WIDTH/2);
                         lightIntensity *= (1.0 - Math.pow(screenDist, 3));
                         
-                        // Add base ambient light
                         lightIntensity += 0.05;
 
                         if (sprite.type !== 'paper') { 
@@ -1070,13 +1089,20 @@
     
     function gameLoop() {
         if(!gameRunning) return;
-        updateGame();
+        
+        let now = Date.now();
+        // Calc delta time in seconds
+        let dt = (now - lastTime) / 1000.0;
+        lastTime = now;
+        
+        updateGame(dt);
         draw();
         requestAnimationFrame(gameLoop);
     }
 
     function endGame(win) {
         gameRunning = false;
+        document.exitPointerLock(); // Free mouse
         if(!win) {
             playAmbientSound('scream_end');
             jumpscareOverlay.style.opacity = 1;
