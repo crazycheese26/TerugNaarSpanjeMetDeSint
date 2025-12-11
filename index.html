@@ -32,8 +32,9 @@
             image-rendering: pixelated; 
             width: 100%;
             height: 100%;
+            /* Base filter, updated dynamically in JS */
             filter: contrast(1.1) brightness(1.2) sepia(0.2) grayscale(0.1); 
-            transition: filter 0.2s;
+            transition: filter 0.2s; /* Smooth transitions */
         }
 
         .scanlines {
@@ -71,6 +72,7 @@
             padding: 20px;
             box-sizing: border-box;
             z-index: 60;
+            transition: transform 0.05s;
         }
 
         #lore-text {
@@ -102,10 +104,11 @@
             text-shadow: 2px 2px 0 #000;
         }
 
+        /* --- REDESIGNED MENU --- */
         #message-overlay {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: #020000;
+            background: radial-gradient(circle, #1a0505 0%, #000000 90%);
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -114,58 +117,55 @@
             pointer-events: auto;
             text-align: center;
         }
-        
-        #jumpscare-overlay {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: #000;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 200;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.05s;
-        }
-        
-        #jumpscare-img { width: 100%; height: 100%; object-fit: cover; }
 
-        h1 {
+        #message-overlay h1 {
             font-family: 'Nosifer', cursive;
-            font-size: 4rem;
+            font-size: 5rem;
             color: #800;
-            margin-bottom: 20px;
-            text-shadow: 4px 4px 0px #000;
+            margin: 0 0 40px 0;
+            text-shadow: 0 0 20px #f00, 4px 4px 0px #000;
             letter-spacing: 5px;
+            animation: pulseTitle 3s infinite ease-in-out;
+            line-height: 1;
         }
 
-        p {
-            color: #888;
-            font-size: 1.1rem;
-            max-width: 500px;
-            margin: 0 auto 30px auto;
-            line-height: 1.6;
-            font-family: monospace;
+        @keyframes pulseTitle {
+            0%, 100% { transform: scale(1); text-shadow: 0 0 20px #f00, 4px 4px 0px #000; }
+            50% { transform: scale(1.05); text-shadow: 0 0 40px #f00, 4px 4px 0px #000; }
         }
 
-        button {
-            background: #100;
-            color: #900;
-            border: 1px solid #400;
-            padding: 20px 40px;
-            font-size: 1.5rem;
+        #message-overlay p {
+            color: #844;
+            font-size: 1.2rem;
+            max-width: 600px;
+            margin: 0 auto 10px auto;
+            line-height: 1.4;
             font-family: 'Creepster', cursive;
-            cursor: pointer;
-            transition: all 0.2s;
-            text-transform: uppercase;
             letter-spacing: 2px;
-            box-shadow: 0 0 10px #200;
+            text-transform: uppercase;
         }
 
-        button:hover {
+        #start-btn {
+            margin-top: 50px;
+            background: transparent;
+            color: #d00;
+            border: 2px solid #800;
+            padding: 20px 60px;
+            font-size: 2rem;
+            font-family: 'Nosifer', cursive;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            box-shadow: 0 0 15px #300, inset 0 0 15px #300;
+        }
+
+        #start-btn:hover {
             background: #300;
-            color: #f00;
-            box-shadow: 0 0 30px #600;
+            color: #fff;
+            border-color: #f00;
+            box-shadow: 0 0 40px #f00, inset 0 0 40px #f00;
+            transform: scale(1.1);
         }
 
         .hidden { display: none !important; }
@@ -190,6 +190,21 @@
             mix-blend-mode: color-burn;
             transition: box-shadow 0.1s;
         }
+        
+        #jumpscare-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.05s;
+        }
+        
+        #jumpscare-img { width: 100%; height: 100%; object-fit: cover; }
 
         #debug-log {
             position: absolute;
@@ -223,10 +238,10 @@
     <div id="debug-log"></div>
 
     <div id="message-overlay">
-        <h1>VERLOREN ZIELEN</h1>
-        <p>De pijlen verschijnen alleen als je goed kijkt.</p>
-        <p>Luister naar je hartslag. Ren niet tenzij het moet.</p>
-        <button id="start-btn">DURF JE?</button>
+        <h1>DE WRAAK<br>VAN DE SINT</h1>
+        <p>Vind de uitgang voordat hij jou vindt.</p>
+        <p>Volg de rode pijlen.</p>
+        <button id="start-btn">START DE NACHTMERRIE</button>
     </div>
 </div>
 
@@ -254,6 +269,7 @@
     const noiseOverlay = document.querySelector('.noise');
     const vignetteEl = document.getElementById('vignette');
     const debugLog = document.getElementById('debug-log');
+    const uiLayer = document.getElementById('ui-layer');
 
     let gameRunning = false;
     let keys = {};
@@ -350,8 +366,12 @@
                 cx.fillStyle = '#000'; for(let i=0; i<3; i++) cx.fillRect(48, 110 + i*5, 30, 2); 
             } else if (type === 'door') {
                 cx.fillStyle = '#111'; cx.fillRect(30, 0, 68, 128);
-                cx.strokeStyle = '#500'; cx.lineWidth = 4; cx.strokeRect(30, 0, 68, 128);
-                cx.fillStyle = '#800'; cx.font = '40px serif'; cx.fillText("EXIT", 25, 80);
+                // Brighter frame
+                cx.strokeStyle = '#900'; cx.lineWidth = 4; cx.strokeRect(30, 0, 68, 128);
+                // Brighter glowing text
+                cx.shadowColor = '#f00'; cx.shadowBlur = 10;
+                cx.fillStyle = '#f00'; cx.font = 'bold 40px serif'; cx.fillText("EXIT", 25, 80);
+                cx.shadowBlur = 0;
             } else if (type === 'sint') {
                 cx.fillStyle = '#3a0505'; 
                 cx.beginPath(); cx.moveTo(30, 128); cx.lineTo(50, 30); cx.lineTo(78, 30); cx.lineTo(98, 128); cx.fill();
@@ -380,7 +400,7 @@
 
             } else if (type === 'piet') {
                 if (variant === 0) {
-                    // --- The Broken Marionette (New) ---
+                    // --- The Broken Marionette ---
                     cx.fillStyle = '#151020'; 
                     cx.beginPath(); cx.moveTo(64, 128); cx.lineTo(30, 128); cx.lineTo(40, 50); cx.lineTo(88, 50); cx.lineTo(98, 128); cx.fill();
                     cx.strokeStyle = '#ccc'; cx.lineWidth = 2;
@@ -409,31 +429,26 @@
                     cx.beginPath(); cx.moveTo(6, 11); cx.lineTo(6, 21); cx.stroke();
                     cx.restore();
                 } else {
-                    // --- Undead Servant (Old Style) ---
-                    cx.fillStyle = '#1a0d33'; // Purple/Blue velvet
+                    // --- Undead Servant ---
+                    cx.fillStyle = '#1a0d33'; 
                     cx.beginPath(); cx.moveTo(35, 128); cx.lineTo(45, 50); cx.lineTo(83, 50); cx.lineTo(93, 128); cx.fill();
                     
-                    // Collar
                     cx.fillStyle = '#eee';
                     cx.beginPath(); cx.ellipse(64, 50, 25, 10, 0, 0, Math.PI*2); cx.fill();
                     
-                    // Head
                     cx.fillStyle = '#222'; 
                     cx.beginPath(); cx.arc(64, 30, 20, 0, Math.PI*2); cx.fill();
                     
-                    // Beret
                     cx.fillStyle = '#411';
                     cx.beginPath(); cx.ellipse(64, 15, 28, 12, -0.2, 0, Math.PI*2); cx.fill();
                     cx.strokeStyle = '#d4af37'; cx.lineWidth = 2;
-                    cx.beginPath(); cx.moveTo(70, 15); cx.lineTo(85, -5); cx.stroke(); // Feather
+                    cx.beginPath(); cx.moveTo(70, 15); cx.lineTo(85, -5); cx.stroke(); 
                     
-                    // Eyes - White glowing
                     cx.fillStyle = '#fff'; cx.shadowColor = '#fff'; cx.shadowBlur = 5;
                     cx.beginPath(); cx.arc(58, 28, 3, 0, Math.PI*2); cx.fill();
                     cx.beginPath(); cx.arc(70, 28, 3, 0, Math.PI*2); cx.fill();
                     cx.shadowBlur = 0;
                     
-                    // Smile
                     cx.strokeStyle = '#a00'; cx.lineWidth = 2;
                     cx.beginPath(); cx.arc(64, 38, 8, 0, Math.PI); cx.stroke();
                 }
@@ -479,6 +494,7 @@
         let map = [];
         distMap = [];
         
+        // Initialize with walls
         for(let y=0; y<MAP_HEIGHT; y++) {
             let row = [];
             let distRow = [];
@@ -487,6 +503,7 @@
             distMap.push(distRow);
         }
 
+        // Recursive Backtracker Maze
         let stack = [];
         let startX = 1, startY = 1;
         map[startY][startX] = 0;
@@ -511,6 +528,7 @@
             } else stack.pop();
         }
         
+        // Add random holes (Loops)
         for(let i=0; i<60; i++) {
             let rx = Math.floor(Math.random()*(MAP_WIDTH-2))+1;
             let ry = Math.floor(Math.random()*(MAP_HEIGHT-2))+1;
@@ -518,6 +536,8 @@
                 if((map[ry-1][rx]===0 && map[ry+1][rx]===0) || (map[ry][rx-1]===0 && map[ry][rx+1]===0)) map[ry][rx]=0;
             }
         }
+        
+        // Add some open rooms
         for(let i=0; i<6; i++) {
              let rx = Math.floor(Math.random()*(MAP_WIDTH-6))+2;
              let ry = Math.floor(Math.random()*(MAP_HEIGHT-6))+2;
@@ -531,25 +551,38 @@
 
         posX = 1.5; posY = 1.5;
 
-        let placedExit = false;
-        let doorX = 0, doorY = 0;
-        let attempts = 0;
-        while(!placedExit && attempts < 2000) {
-            attempts++;
-            let rx = Math.floor(Math.random() * MAP_WIDTH);
-            let ry = Math.floor(Math.random() * MAP_HEIGHT);
-            if(map[ry][rx] === 0 && Math.hypot(rx - posX, ry - posY) > 45) {
-                sprites.push({ x: rx+0.5, y: ry+0.5, type: 'door', active: true });
-                placedExit = true;
-                doorX = rx; doorY = ry;
+        // --- NEW ROBUST DOOR PLACEMENT ---
+        // 1. Find ALL valid floor tiles
+        let floorTiles = [];
+        for(let y=1; y<MAP_HEIGHT-1; y++) {
+            for(let x=1; x<MAP_WIDTH-1; x++) {
+                if(map[y][x] === 0) {
+                    floorTiles.push({x: x, y: y});
+                }
             }
         }
-        if(!placedExit) {
-             doorX = MAP_WIDTH-2; doorY = MAP_HEIGHT-2;
-             map[doorY][doorX] = 0;
-             sprites.push({ x: doorX+0.5, y: doorY+0.5, type: 'door', active: true });
+
+        // 2. Filter tiles that are far enough from spawn
+        // Reduced threshold to 25 to guarantee spawn even on twisty maps
+        let farTiles = floorTiles.filter(t => Math.hypot(t.x - posX, t.y - posY) > 25);
+
+        // 3. Select Door Location
+        let doorLocation;
+        if(farTiles.length > 0) {
+            // Pick a random spot from the valid far tiles
+            doorLocation = farTiles[Math.floor(Math.random() * farTiles.length)];
+        } else {
+            // Fallback: If map is tiny or weird, pick the absolute furthest tile available
+            floorTiles.sort((a,b) => Math.hypot(b.x - posX, b.y - posY) - Math.hypot(a.x - posX, a.y - posY));
+            doorLocation = floorTiles[0];
         }
 
+        // 4. Place Door
+        let doorX = doorLocation.x;
+        let doorY = doorLocation.y;
+        sprites.push({ x: doorX+0.5, y: doorY+0.5, type: 'door', active: true });
+
+        // Calculate Distances for Arrows (BFS from Door)
         let q = [{x: doorX, y: doorY, dist: 0}];
         distMap[doorY][doorX] = 0;
         while(q.length > 0) {
@@ -593,6 +626,7 @@
             }
         }
 
+        // Guarantee spawn clear
         map[1][1] = 0; map[1][2] = 0; map[2][1] = 0;
         
         return map;
@@ -663,28 +697,41 @@
         frameCount++;
 
         let currentSpeed = (keys['shift'] ? RUN_SPEED : MOVE_SPEED) * dt;
-        function isBlocking(val) { return val !== 0; } 
 
+        // --- SAFE ACCESS HELPER ---
+        // Prevents out-of-bounds access if player clips walls or edge of map
+        function getMap(x, y) {
+            if (x < 0 || x >= MAP_WIDTH || y < 0 || y >= MAP_HEIGHT) return 1; // Out of bounds = Wall
+            if (!mapLayout[Math.floor(y)]) return 1; // Row does not exist
+            return mapLayout[Math.floor(y)][Math.floor(x)];
+        }
+        
+        function isBlocking(x, y) {
+             return getMap(x, y) !== 0;
+        }
+
+        // Updated movement logic using safe accessors
         if (keys['w'] || keys['arrowup']) {
-            if(!isBlocking(mapLayout[Math.floor(posY)][Math.floor(posX + dirX * currentSpeed * 2)])) posX += dirX * currentSpeed;
-            if(!isBlocking(mapLayout[Math.floor(posY + dirY * currentSpeed * 2)][Math.floor(posX)])) posY += dirY * currentSpeed;
+            if(!isBlocking(posX + dirX * currentSpeed * 2, posY)) posX += dirX * currentSpeed;
+            if(!isBlocking(posX, posY + dirY * currentSpeed * 2)) posY += dirY * currentSpeed;
         }
         if (keys['s'] || keys['arrowdown']) {
-            if(!isBlocking(mapLayout[Math.floor(posY)][Math.floor(posX - dirX * currentSpeed * 2)])) posX -= dirX * currentSpeed;
-            if(!isBlocking(mapLayout[Math.floor(posY - dirY * currentSpeed * 2)][Math.floor(posX)])) posY -= dirY * currentSpeed;
+            if(!isBlocking(posX - dirX * currentSpeed * 2, posY)) posX -= dirX * currentSpeed;
+            if(!isBlocking(posX, posY - dirY * currentSpeed * 2)) posY -= dirY * currentSpeed;
         }
         
         if (keys['a'] || keys['arrowleft']) {
-             if(!isBlocking(mapLayout[Math.floor(posY)][Math.floor(posX - dirY * currentSpeed * 2)])) posX -= dirY * currentSpeed;
-             if(!isBlocking(mapLayout[Math.floor(posY + dirX * currentSpeed * 2)][Math.floor(posX)])) posY += dirX * currentSpeed;
+             if(!isBlocking(posX - dirY * currentSpeed * 2, posY)) posX -= dirY * currentSpeed;
+             if(!isBlocking(posX, posY + dirX * currentSpeed * 2)) posY += dirX * currentSpeed;
         }
         
         if (keys['d'] || keys['arrowright']) {
-             if(!isBlocking(mapLayout[Math.floor(posY)][Math.floor(posX + dirY * currentSpeed * 2)])) posX += dirY * currentSpeed;
-             if(!isBlocking(mapLayout[Math.floor(posY - dirX * currentSpeed * 2)][Math.floor(posX)])) posY -= dirX * currentSpeed;
+             if(!isBlocking(posX + dirY * currentSpeed * 2, posY)) posX += dirY * currentSpeed;
+             if(!isBlocking(posX, posY - dirX * currentSpeed * 2)) posY -= dirX * currentSpeed;
         }
 
-        if (isBlocking(mapLayout[Math.floor(posY)][Math.floor(posX)])) {
+        // Safe check for current tile
+        if (isBlocking(posX, posY)) {
             posX = 1.5; posY = 1.5; 
         }
 
@@ -706,7 +753,7 @@
                 let hX = posX + Math.cos(angle) * spawnDist;
                 let hY = posY + Math.sin(angle) * spawnDist;
                 if (hX > 1 && hX < MAP_WIDTH-1 && hY > 1 && hY < MAP_HEIGHT-1) {
-                    if (mapLayout[Math.floor(hY)][Math.floor(hX)] === 0) {
+                    if (getMap(hX, hY) === 0) { // Using safe accessor
                         let pietType = Math.random() > 0.5 ? 'piet_new' : 'piet_old';
                         let piet = { 
                             x: hX, y: hY, 
@@ -736,7 +783,6 @@
         }
 
         let timeAlive = (now - startTime) / 1000;
-        // INCREASED SINT SPEED
         let sintSpeed = (3.0 + (timeAlive * 0.04)) * dt; 
         if(sintSpeed > (7.0 * dt)) sintSpeed = 7.0 * dt;
 
@@ -744,20 +790,17 @@
         let dy = posY - sint.y;
         let dist = Math.sqrt(dx*dx + dy*dy);
         
-        // BETTER TELEPORT / CATCHUP
         if (Math.floor(now / 2000) > Math.floor((now - dt*1000)/2000)) {
              let stuck = Math.hypot(sint.x - sint.lastX, sint.y - sint.lastY) < 0.1;
-             // Reduced max distance to 25 so he teleports closer
              let tooFar = dist > 25; 
              if (stuck || tooFar) {
                  for(let i=0; i<20; i++) {
-                     // Try to spawn BEHIND or AHEAD within 10-15 units
                      let angle = Math.atan2(dirY, dirX) + Math.PI + (Math.random()-0.5); 
                      let d = 10 + Math.random() * 5;
                      let tx = posX + Math.cos(angle) * d;
                      let ty = posY + Math.sin(angle) * d;
                      if(tx > 1 && tx < MAP_WIDTH-1 && ty > 1 && ty < MAP_HEIGHT-1) {
-                         if(mapLayout[Math.floor(ty)][Math.floor(tx)] === 0) {
+                         if(getMap(tx, ty) === 0) { // Safe access
                              sint.x = Math.floor(tx) + 0.5;
                              sint.y = Math.floor(ty) + 0.5;
                              break;
@@ -772,8 +815,9 @@
         if (dist > 0.5) {
             let sx = dx / dist * sintSpeed;
             let sy = dy / dist * sintSpeed;
-            if (!isBlocking(mapLayout[Math.floor(sint.y)][Math.floor(sint.x + sx * 1.5)])) sint.x += sx;
-            if (!isBlocking(mapLayout[Math.floor(sint.y + sy * 1.5)][Math.floor(sint.x)])) sint.y += sy;
+            // Using safe access for Sint movement too
+            if (!isBlocking(sint.x + sx * 1.5, sint.y)) sint.x += sx;
+            if (!isBlocking(sint.x, sint.y + sy * 1.5)) sint.y += sy;
         }
 
         sintProximity = Math.max(0, 1 - (dist / 14)); 
@@ -783,11 +827,16 @@
         if (dangerAlpha > 0.9) dangerAlpha = 0.9;
         dangerOverlay.style.boxShadow = `inset 0 0 ${dangerAlpha * 150}px #500`;
         
-        // Base size much larger (clearer center)
-        let vignetteSize = 40 - (sintProximity * 15); 
+        // Pulse effect for vignette
+        let pulse = 0;
+        if (sintProximity > 0.1) {
+            pulse = Math.sin(now / 150) * (sintProximity * 8); // Breathing effect
+        }
+        let vignetteSize = 40 - (sintProximity * 25) + pulse;
+        
         if(keys['shift']) vignetteSize -= 5;
         if(vignetteSize < 15) vignetteSize = 15;
-        // Gradient stops spread out more
+        
         vignetteEl.style.background = `radial-gradient(circle at center, rgba(0,0,0,0) ${vignetteSize}%, rgba(0,0,0,0.7) ${vignetteSize+30}%, black ${vignetteSize+60}%)`;
 
         if(noiseOverlay.style.opacity < 0.9) {
@@ -891,9 +940,24 @@
         ctx.fillStyle = '#101010'; ctx.fillRect(0, SCREEN_HEIGHT / 2, SCREEN_WIDTH, SCREEN_HEIGHT / 2);
 
         ctx.save();
-        // Shake removed
+        // Shake Removed
 
         try {
+            // Visual Hint 1: Dynamic Gritty Filter
+            let contrast = 1.1 + (sintProximity * 0.6);
+            let brightness = 1.2 - (sintProximity * 0.6); // Darker
+            let sepia = 0.2 + (sintProximity * 0.6); // Yellow/Redder
+            canvas.style.filter = `contrast(${contrast}) brightness(${brightness}) sepia(${sepia}) grayscale(0.1)`;
+
+            // Visual Hint 2: UI Glitch
+            if (sintProximity > 0.4 && Math.random() < 0.1) {
+                let x = (Math.random() - 0.5) * 5;
+                let y = (Math.random() - 0.5) * 5;
+                uiLayer.style.transform = `translate(${x}px, ${y}px)`;
+            } else {
+                uiLayer.style.transform = 'none';
+            }
+
             let breathe = Math.sin(frameCount * 0.05) * 0.05;
             zBuffer = []; 
 
@@ -953,7 +1017,8 @@
 
                 let wallRandom = Math.abs(Math.sin(mapX * 12.9898 + mapY * 78.233) * 43758.5453) % 1;
 
-                if(wallRandom < 0.0015) { 
+                // Increased arrow spawn chance from 0.0015 to 0.02 (2%)
+                if(wallRandom < 0.02) { 
                     let adjX = mapX, adjY = mapY;
                     if(side === 0) adjX -= stepX;
                     else adjY -= stepY;
@@ -1105,11 +1170,24 @@
 
     function showMenu(win) {
         let title = win ? "ONTSNAPT" : "DOOD";
-        msgOverlay.querySelector('h1').innerText = title;
+        let sub = win ? "De nachtmerrie is voorbij." : "Je ziel is nu van hem.";
+        
+        let html = `
+            <h1>${title}</h1>
+            <p>${sub}</p>
+            <button id="start-btn">OPNIEUW</button>
+        `;
+        
+        msgOverlay.innerHTML = html;
         msgOverlay.querySelector('h1').style.color = win ? "#4a4" : "#900";
-        msgOverlay.querySelector('p').innerText = win ? "De nachtmerrie is voorbij." : "Je ziel is nu van hem.";
-        msgOverlay.querySelectorAll('p')[1].innerText = "";
-        startBtn.innerText = "OPNIEUW";
+        msgOverlay.querySelector('h1').style.textShadow = win ? "0 0 20px #0f0" : "0 0 20px #f00";
+        
+        document.getElementById('start-btn').addEventListener('click', () => { 
+            initAudio(); 
+            initGame(); 
+            canvas.requestPointerLock();
+        });
+        
         msgOverlay.classList.remove('hidden');
         jumpscareOverlay.style.opacity = 0;
     }
