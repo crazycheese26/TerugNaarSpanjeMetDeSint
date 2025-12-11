@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>De Wraak van de Sint - Lore Edition</title>
+    <title>De Wraak van de Sint - Flashlight Edition</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Creepster&family=Nosifer&family=Roboto:wght@400;700&family=Caveat:wght@700&display=swap');
 
@@ -27,12 +27,12 @@
             align-items: center;
         }
 
-        /* CRT/VHS Effects - Brightness bumped up slightly to fix black screen */
+        /* CRT/VHS Effects */
         canvas {
             image-rendering: pixelated; 
             width: 100%;
             height: 100%;
-            filter: contrast(1.2) brightness(1.1) sepia(0.3) hue-rotate(-5deg); 
+            filter: contrast(1.2) brightness(1.1) sepia(0.2); 
         }
 
         .scanlines {
@@ -50,7 +50,7 @@
             background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIj48ZmlsdGVyIGlkPSJub2lzZSI+PGZlVHVyYnVsZW5jZSB0eXBlPSJmcmFjdGFsTm9pc2UiIGJhc2VGcmVxdWVuY3k9IjAuNjUiIG51bU9jdGF2ZXM9IjMiIHN0aXRjaFRpbGVzPSJzdGl0Y2giLz48L2ZpbHRlcj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWx0ZXI9InVybCgjbm9pc2UpIiBvcGFjaXR5PSIwLjA4Ii8+PC9zdmc+');
             pointer-events: none;
             z-index: 51;
-            opacity: 0.1;
+            opacity: 0.08;
             animation: noiseAnim 0.2s infinite;
         }
 
@@ -165,12 +165,14 @@
 
         .hidden { display: none !important; }
 
+        /* Flashlight Vignette - darker edges, clear center */
         #vignette {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: radial-gradient(circle, transparent 30%, rgba(0,0,0,0.8) 70%, black 100%);
+            background: radial-gradient(circle at center, rgba(0,0,0,0) 20%, rgba(0,0,0,0.5) 40%, rgba(0,0,0,0.95) 70%, black 100%);
             pointer-events: none;
             z-index: 55;
+            mix-blend-mode: multiply;
         }
     </style>
 </head>
@@ -193,8 +195,8 @@
 
     <div id="message-overlay">
         <h1>VERLOREN ZIELEN</h1>
-        <p>Lees de notities van zij die faalden. Leer van hun fouten.</p>
-        <p>Hij is geen heilige. Hij is hongerig.</p>
+        <p>Je hebt alleen een zaklamp. De batterij is oneindig, je moed niet.</p>
+        <p>Hij is hongerig. En hij is niet alleen.</p>
         <button id="start-btn">BETREDEN</button>
     </div>
 </div>
@@ -240,7 +242,7 @@
     let planeX = 0, planeY = 0.66; 
 
     // Entities
-    let sint = { x: 0, y: 0, active: true };
+    let sint = { x: 0, y: 0, active: true, lastX: 0, lastY: 0 };
     let sprites = []; 
     
     // Lore Database
@@ -268,7 +270,7 @@
             c.width = texWidth; c.height = texHeight;
             const cx = c.getContext('2d');
             
-            // Base Color (Significantly brightened from previous version to fix black screen)
+            // Base Color
             cx.fillStyle = color1; 
             cx.fillRect(0,0,64,64);
             
@@ -285,15 +287,13 @@
                 for(let i=0; i<6; i++) cx.fillRect(i*10 + Math.random()*4, 0, 4, 64);
                 
                 if (type === 'wall_bloody') {
-                    cx.fillStyle = '#600'; // Brighter blood for visibility
+                    cx.fillStyle = '#600'; 
                     cx.font = 'bold 16px Courier';
                     cx.save();
                     cx.translate(32, 32);
                     cx.rotate((Math.random()-0.5)*0.5);
                     let msg = wallMessages[variant % wallMessages.length];
                     cx.fillText(msg, -20, 5);
-                    
-                    // Drips
                     cx.fillRect(-10, 10, 2, 20);
                     cx.fillRect(10, 10, 3, 15);
                     cx.restore();
@@ -308,22 +308,19 @@
             const cx = c.getContext('2d');
             
             if (type === 'paper') {
-                // Glowing paper on floor
                 cx.fillStyle = '#ffc';
-                cx.fillRect(44, 100, 40, 28); // Paper
+                cx.fillRect(44, 100, 40, 28); 
                 cx.fillStyle = '#000';
-                for(let i=0; i<4; i++) cx.fillRect(48, 105 + i*5, 30, 2); // Text lines
-                // Glow
+                for(let i=0; i<4; i++) cx.fillRect(48, 105 + i*5, 30, 2); 
                 cx.shadowBlur = 15; cx.shadowColor = '#ffc';
                 cx.strokeStyle = '#ffc'; cx.strokeRect(44,100,40,28);
                 cx.shadowBlur = 0;
             } else if (type === 'door') {
-                cx.fillStyle = '#222'; cx.fillRect(30, 0, 68, 128); // Brighter door
+                cx.fillStyle = '#222'; cx.fillRect(30, 0, 68, 128);
                 cx.strokeStyle = '#632'; cx.lineWidth = 4; cx.strokeRect(30, 0, 68, 128);
                 cx.fillStyle = '#a00'; cx.font = '40px serif'; cx.fillText("Ω", 50, 80);
             } else if (type === 'sint') {
-                // Taller, Scarier Sint
-                cx.fillStyle = '#800'; // Robe - Brighter
+                cx.fillStyle = '#800'; 
                 cx.beginPath(); cx.moveTo(40, 128); cx.lineTo(64, 20); cx.lineTo(88, 128); cx.fill();
                 cx.fillStyle = '#600';
                 cx.beginPath(); cx.moveTo(40, 128); cx.lineTo(30, 50); cx.lineTo(64, 20); cx.lineTo(98, 50); cx.lineTo(88, 128); cx.fill();
@@ -344,15 +341,22 @@
                 cx.fillStyle = '#fff';
                 cx.beginPath(); cx.moveTo(52, 35); cx.lineTo(64, 60); cx.lineTo(76, 35); cx.fill();
             } else if (type === 'piet') {
-                cx.fillStyle = '#0a0a0a'; 
+                // Made body slightly lighter so they are visible in flashlight beam
+                cx.fillStyle = '#111'; 
                 cx.beginPath(); cx.ellipse(64, 80, 20, 40, 0, 0, Math.PI*2); cx.fill();
                 cx.beginPath(); cx.arc(64, 40, 18, 0, Math.PI*2); cx.fill();
+                
+                // Outline to help visibility
+                cx.strokeStyle = '#222'; cx.lineWidth = 1; cx.stroke();
+
                 cx.strokeStyle = '#505'; cx.lineWidth=3; 
                 cx.beginPath(); cx.moveTo(64, 25); cx.lineTo(90, 10); cx.stroke();
+                
+                // Bright glowing eyes
                 cx.fillStyle = '#fff';
-                cx.shadowBlur = 5; cx.shadowColor = '#fff';
-                cx.beginPath(); cx.arc(58, 40, 2, 0, Math.PI*2); cx.fill();
-                cx.beginPath(); cx.arc(70, 40, 2, 0, Math.PI*2); cx.fill();
+                cx.shadowBlur = 10; cx.shadowColor = '#fff';
+                cx.beginPath(); cx.arc(58, 40, 3, 0, Math.PI*2); cx.fill();
+                cx.beginPath(); cx.arc(70, 40, 3, 0, Math.PI*2); cx.fill();
                 cx.shadowBlur = 0;
             }
             return c;
@@ -382,7 +386,6 @@
             return c;
         }
 
-        // Updated texture colors: much brighter base to counter the darkness filter
         textures.wall = createTexture('#444', '#333', 'wall', 0); 
         textures.wall_bloody_1 = createTexture('#444', '#333', 'wall_bloody', 0);
         textures.wall_bloody_2 = createTexture('#444', '#333', 'wall_bloody', 1);
@@ -450,9 +453,7 @@
             if(map[ry][rx] === 0) {
                 let msg = loreMessages[Math.floor(Math.random() * loreMessages.length)];
                 sprites.push({ x: rx+0.5, y: ry+0.5, type: 'paper', active: true, msg: msg });
-                
-                // Add bloody wall near paper
-                if(map[ry][rx-1]===1) map[ry][rx-1] = 5 + Math.floor(Math.random()*3); // 5, 6, 7
+                if(map[ry][rx-1]===1) map[ry][rx-1] = 5 + Math.floor(Math.random()*3);
             }
         }
 
@@ -474,8 +475,8 @@
         while(!placedSint) {
             let rx = Math.floor(Math.random() * MAP_WIDTH);
             let ry = Math.floor(Math.random() * MAP_HEIGHT);
-            if(map[ry][rx] === 0 && Math.hypot(rx - posX, ry - posY) > 20) {
-                sint = { x: rx+0.5, y: ry+0.5, type: 'sint', active: true };
+            if(map[ry][rx] === 0 && Math.hypot(rx - posX, ry - posY) > 15) {
+                sint = { x: rx+0.5, y: ry+0.5, type: 'sint', active: true, lastX: rx, lastY: ry };
                 sprites.push(sint);
                 placedSint = true;
             }
@@ -543,7 +544,7 @@
             if(!isBlocking(mapLayout[Math.floor(posY - dirY * currentSpeed * 2)][Math.floor(posX)])) posY -= dirY * currentSpeed;
         }
 
-        // --- Lore Check ---
+        // Lore
         let nearbyPaper = null;
         sprites.forEach(s => {
             if(s.type === 'paper') {
@@ -551,21 +552,23 @@
                 if(d < 1.0) nearbyPaper = s.msg;
             }
         });
-        
-        if(nearbyPaper) {
-            loreTextEl.innerText = nearbyPaper;
-            loreTextEl.style.opacity = 1;
-        } else {
-            loreTextEl.style.opacity = 0;
-        }
+        if(nearbyPaper) { loreTextEl.innerText = nearbyPaper; loreTextEl.style.opacity = 1; } 
+        else { loreTextEl.style.opacity = 0; }
 
-        // --- Peeking Pieten Logic ---
-        if (now - lastHallucinationCheck > 1500) { 
+        // --- Improved Looker (Piet) Logic ---
+        // Check more often (every 0.5s)
+        if (now - lastHallucinationCheck > 500) { 
             lastHallucinationCheck = now;
-            if (hallucinations.length < 3 && Math.random() < 0.4) {
-                let spawnDist = 6 + Math.random() * 6;
-                let hX = posX + dirX * spawnDist + (Math.random()-0.5)*4;
-                let hY = posY + dirY * spawnDist + (Math.random()-0.5)*4;
+            // Higher chance (60%) if not maxed out
+            if (hallucinations.length < 5 && Math.random() < 0.6) {
+                // Spawn closer (3-8 units)
+                let spawnDist = 3 + Math.random() * 5;
+                // Add noise to angle so they aren't always dead center
+                let angle = Math.atan2(dirY, dirX) + (Math.random() - 0.5) * 1.5;
+                let hX = posX + Math.cos(angle) * spawnDist;
+                let hY = posY + Math.sin(angle) * spawnDist;
+                
+                // Bounds Check
                 if (hX > 1 && hX < MAP_WIDTH-1 && hY > 1 && hY < MAP_HEIGHT-1) {
                     if (mapLayout[Math.floor(hY)][Math.floor(hX)] === 0) {
                         let piet = { x: hX, y: hY, type: 'piet', active: true, spawnTime: now };
@@ -579,7 +582,8 @@
         for(let i = hallucinations.length - 1; i >= 0; i--) {
             let p = hallucinations[i];
             let distToPiet = Math.hypot(posX - p.x, posY - p.y);
-            if (distToPiet < 4) {
+            // Must get very close to vanish (2.5 units) or time out
+            if (distToPiet < 2.5 || (now - p.spawnTime > 5000)) {
                 p.active = false; 
                 hallucinations.splice(i, 1);
                 playAmbientSound('vanish');
@@ -588,15 +592,39 @@
             }
         }
 
-        // --- Sint AI ---
+        // Sint
         let timeAlive = (now - startTime) / 1000;
-        let sintSpeed = 0.035 + (timeAlive * 0.0004);
-        if(sintSpeed > 0.09) sintSpeed = 0.09;
+        let sintSpeed = 0.045 + (timeAlive * 0.0006);
+        if(sintSpeed > 0.11) sintSpeed = 0.11;
 
         let dx = posX - sint.x;
         let dy = posY - sint.y;
         let dist = Math.sqrt(dx*dx + dy*dy);
         
+        // Teleport
+        if (frameCount % 120 === 0) {
+            let stuck = Math.hypot(sint.x - sint.lastX, sint.y - sint.lastY) < 0.1;
+            let tooFar = dist > 25; 
+            if (stuck || tooFar) {
+                 for(let i=0; i<10; i++) {
+                     let angle = Math.atan2(dirY, dirX) + Math.PI + (Math.random()-0.5); 
+                     let d = 8 + Math.random() * 6;
+                     let tx = posX + Math.cos(angle) * d;
+                     let ty = posY + Math.sin(angle) * d;
+                     if(tx > 1 && tx < MAP_WIDTH-1 && ty > 1 && ty < MAP_HEIGHT-1) {
+                         if(mapLayout[Math.floor(ty)][Math.floor(tx)] === 0) {
+                             sint.x = tx + 0.5;
+                             sint.y = ty + 0.5;
+                             playAmbientSound('vanish'); 
+                             break;
+                         }
+                     }
+                 }
+            }
+            sint.lastX = sint.x;
+            sint.lastY = sint.y;
+        }
+
         if (dist > 0.5) {
             let sx = dx / dist * sintSpeed;
             let sy = dy / dist * sintSpeed;
@@ -747,10 +775,25 @@
 
             ctx.drawImage(tex, texX, 0, 1, texHeight, x, drawStart, 1, drawEnd - drawStart);
             
-            let brightness = 1.0 / (perpWallDist * 0.5); 
-            if (brightness > 1) brightness = 1;
-            if (side === 1) brightness *= 0.6;
-            ctx.fillStyle = `rgba(0,0,0,${1 - brightness})`;
+            // Flashlight Logic for Walls
+            // Basic brightness based on distance
+            let lightIntensity = 1.0 / (perpWallDist * 0.3); // Increased brightness multiplier for flashlight feel
+            if (lightIntensity > 1) lightIntensity = 1;
+            
+            // Radial falloff (Flashlight beam)
+            // Calculate distance from center of screen (0 to 1)
+            let screenDist = Math.abs(x - SCREEN_WIDTH / 2) / (SCREEN_WIDTH / 2);
+            // Falloff function
+            let beam = 1.0 - Math.pow(screenDist, 2); // Parabolic falloff
+            lightIntensity *= beam;
+
+            // Extra darkness at distance
+            if(perpWallDist > 8) lightIntensity *= 0.5;
+
+            // Side darkening
+            if (side === 1) lightIntensity *= 0.7;
+
+            ctx.fillStyle = `rgba(0,0,0,${1 - lightIntensity})`;
             ctx.fillRect(x, drawStart, 1, drawEnd - drawStart);
         }
 
@@ -773,8 +816,7 @@
             
             let animOffset = 0;
             if (sprite.type === 'piet') animOffset = Math.sin(frameCount * 0.05) * 10;
-            // Paper floats slightly
-            if (sprite.type === 'paper') animOffset = Math.sin(frameCount * 0.1) * 5 + 60; // Lower on screen
+            if (sprite.type === 'paper') animOffset = Math.sin(frameCount * 0.1) * 5 + 60; 
 
             let drawStartY = -spriteHeight / 2 + SCREEN_HEIGHT / 2 + animOffset / transformY;
             let drawEndY = spriteHeight / 2 + SCREEN_HEIGHT / 2 + animOffset / transformY;
@@ -788,7 +830,7 @@
             else if (sprite.type === 'piet') tex = textures.piet;
             else if (sprite.type === 'paper') tex = textures.paper;
 
-            if (sprite.type === 'piet') ctx.globalAlpha = 0.8; 
+            if (sprite.type === 'piet') ctx.globalAlpha = 0.9; // More visible
             else ctx.globalAlpha = 1.0;
 
             for (let stripe = Math.floor(drawStartX); stripe < Math.floor(drawEndX); stripe++) {
@@ -797,13 +839,17 @@
                 
                 if (transformY > 0 && stripe > 0 && stripe < SCREEN_WIDTH && transformY < zBuffer[stripe]) {
                     ctx.drawImage(tex, realTexX, 0, 1, 128, stripe, drawStartY, 1, drawEndY - drawStartY);
-                    let brightness = 1.0 / (transformY * 0.5);
-                    if (brightness > 1) brightness = 1;
-                    if (brightness < 0) brightness = 0;
                     
-                    // Paper glows in dark
-                    if (sprite.type !== 'paper') {
-                        ctx.fillStyle = `rgba(0,0,0,${1 - brightness})`;
+                    // Flashlight Logic for Sprites
+                    let lightIntensity = 1.0 / (transformY * 0.3); 
+                    if (lightIntensity > 1) lightIntensity = 1;
+                    
+                    let screenDist = Math.abs(stripe - SCREEN_WIDTH / 2) / (SCREEN_WIDTH / 2);
+                    let beam = 1.0 - Math.pow(screenDist, 2);
+                    lightIntensity *= beam;
+                    
+                    if (sprite.type !== 'paper') { // Paper always glows
+                        ctx.fillStyle = `rgba(0,0,0,${1 - lightIntensity})`;
                         ctx.fillRect(stripe, drawStartY, 1, drawEndY - drawStartY);
                     }
                 }
